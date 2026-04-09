@@ -1,0 +1,43 @@
+# 忽略压缩包
+Deepquantum.zip
+
+# 忽略整个数据原始目录
+Deepquantum/data/
+
+# 压缩包文件
+*.zip
+*.rar
+*.7z
+*.tarS
+*.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 输出文件
+outputs/

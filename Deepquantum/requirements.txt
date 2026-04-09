@@ -1,0 +1,33 @@
+# Core dependencies
+torch>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Graph processing
+networkx>=3.1
+
+# Quantum computing (DeepQuantum - to be installed from source)
+# deepquantum  # Install from: https://github.com/turingq/deepquantum
+
+# Machine learning
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Utilities
+tqdm>=4.65.0
+joblib>=1.3.0
+pyyaml>=6.0
+
+# Development
+jupyter>=1.0.0
+ipykernel>=6.25.0
+
+# Optional: For Elliptic++ dataset
+# wget
+# requests
