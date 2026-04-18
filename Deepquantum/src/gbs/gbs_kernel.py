@@ -125,7 +125,7 @@ class GBSKernel(nn.Module):
                     cutoff=self.config.cutoff,
                     detector=detector  # Set detector type
                 )
-                print(f"✓ Created QumodeCircuit:")
+                print(f"[OK] Created QumodeCircuit:")
                 print(f"    nmode={self.n_modes}")
                 print(f"    init_state='vac' (vacuum)")
                 print(f"    backend={self.config.backend}")
@@ -139,7 +139,7 @@ class GBSKernel(nn.Module):
         if hasattr(self.dq, 'PhotonicCircuit'):
             try:
                 circuit = self.dq.PhotonicCircuit(n=self.n_modes)
-                print(f"✓ Created PhotonicCircuit with n={self.n_modes}")
+                print(f"[OK] Created PhotonicCircuit with n={self.n_modes}")
                 return circuit
             except Exception as e:
                 last_error = e
@@ -147,7 +147,7 @@ class GBSKernel(nn.Module):
         if hasattr(self.dq, 'Circuit'):
             try:
                 circuit = self.dq.Circuit(self.n_modes)
-                print(f"✓ Created Circuit with {self.n_modes} modes")
+                print(f"[OK] Created Circuit with {self.n_modes} modes")
                 return circuit
             except Exception as e:
                 last_error = e
@@ -337,7 +337,7 @@ class GBSKernel(nn.Module):
 
             # Step 1: Execute circuit
             _ = circuit()  # Execute to prepare the state
-            print(f"  ✓ Circuit executed")
+            print(f"  [OK] Circuit executed")
 
             # Step 2: Measure to get samples
             wires = list(range(self.n_modes))  # Measure all modes
@@ -348,7 +348,7 @@ class GBSKernel(nn.Module):
                     wires=wires,
                     with_prob=False
                 )
-                print(f"  ✓ measure() returned: {type(result)}")
+                print(f"  [OK] measure() returned: {type(result)}")
 
                 # Parse the result from measure()
                 # Format: {|0000>: 8, |0020>: 1, |2020>: 1}
@@ -386,12 +386,12 @@ class GBSKernel(nn.Module):
 
                     # Convert to numpy array
                     samples = np.array(samples_list, dtype=np.float32)
-                    print(f"  ✓ Converted to samples array: {samples.shape}")
+                    print(f"  [OK] Converted to samples array: {samples.shape}")
 
                 else:
                     raise ValueError(f"Unexpected measure() return type: {type(result)}")
 
-                print(f"  ✓ Samples shape: {samples.shape}, dtype: {samples.dtype}")
+                print(f"  [OK] Samples shape: {samples.shape}, dtype: {samples.dtype}")
 
                 # Ensure correct shape [n_shots, n_modes]
                 if samples.ndim == 1:
@@ -710,7 +710,7 @@ if __name__ == "__main__":
     # Test DeepQuantum import
     try:
         import deepquantum as dq
-        print("✓ DeepQuantum is available")
+        print("[OK] DeepQuantum is available")
         print(f"  Version: {getattr(dq, '__version__', 'unknown')}")
     except ImportError:
         print("✗ DeepQuantum not installed")
@@ -729,7 +729,7 @@ if __name__ == "__main__":
 
     # Create kernel
     kernel = GBSKernel(config)
-    print(f"✓ GBS Kernel initialized with {config.n_modes} modes")
+    print(f"[OK] GBS Kernel initialized with {config.n_modes} modes")
 
     # Test forward pass with mock data
     batch_size = 4
@@ -751,7 +751,7 @@ if __name__ == "__main__":
     # Forward pass
     features = kernel(squeezing, unitary, batch_mode=True)
 
-    print(f"\n✓ Forward pass successful")
+    print(f"\n[OK] Forward pass successful")
     print(f"  Output shape: {features.shape}")
     print(f"  Features: {features[0]}")
 

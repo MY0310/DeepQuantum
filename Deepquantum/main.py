@@ -4,7 +4,12 @@ Main entry point for Q-GAD system.
 This script provides:
 - Training pipeline
 - Evaluation pipeline
-- Inference/prediction pipeline
+
+Legacy notice:
+- This entrypoint is kept for backward compatibility.
+- For Elliptic++ training and reproduction, use:
+  - `python run_elliptic_fast.py` (quick verification)
+  - `python run_elliptic.py` (full training)
 """
 
 import torch
@@ -413,6 +418,14 @@ def evaluate(args, config):
 
 def main():
     """Main entry point."""
+    print("=" * 70)
+    print("LEGACY ENTRYPOINT NOTICE")
+    print("`main.py` is kept for compatibility and is not the primary Elliptic++")
+    print("training entrypoint. Recommended commands:")
+    print("  python run_elliptic_fast.py")
+    print("  python run_elliptic.py")
+    print("=" * 70)
+
     args = parse_args()
 
     # Load configuration

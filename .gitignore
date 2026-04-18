@@ -40,4 +40,25 @@ wheels/
 *.swo
 
 # 输出文件
-outputs/
+outputs
+
+# Claude Code
+.claude/
+
+#文章
+article/
+
+#项目手册
+project/
+
+#codex
+.codex/
+
+#项目文档
+项目文档.md
+
+#训练日志
+Deepquantum/logs/
+
+#对抗实验
+Deepquantum/experiments/
