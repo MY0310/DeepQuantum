@@ -1,5 +1,4 @@
 # Archives
-Deepquantum.zip
 *.zip
 *.rar
 *.7z
@@ -45,14 +44,13 @@ Deepquantum/gnn_baseline/outputs/
 Deepquantum/experiments/**/results/
 Deepquantum/experiments/**/checkpoints/
 
+# Local runtime cache
+Deepquantum/.mplconfig/
+Deepquantum/**/.mplconfig/
+
 # Local work dirs
 .claude/
 .codex/
 article/
 project/
 new-gnn/
-Deepquantum/.mplconfig/
-
-#experiments
-
-#visualization

@@ -1,8 +1,9 @@
 # Q-GAD Main Project
 
-最后更新：2026-04-24
+最后更新：2026-04-29
 
 本目录是 Q-GAD 主工程，包含训练、实验、基线与可视化脚本。
+在仓库文档中本目录统一称为 `app root`（仓库外层目录称为 `repo root`）。
 
 ## 核心结构
 
@@ -49,3 +50,8 @@ python -m visualization.generate_all
 - 实验结果：`experiments/RESULTS.md`
 - GNN 基线：`gnn_baseline/README.md`
 - 可视化：`visualization/README.md`
+
+## 清理约定
+
+- 可删除本地缓存：`__pycache__/`、`.mplconfig/`
+- 建议保留实验缓存：`experiments/*/cache/*.pt`（用于复用量子特征、加速重跑）

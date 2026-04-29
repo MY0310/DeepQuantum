@@ -1,6 +1,6 @@
 # Q-GAD Experiments
 
-最后更新：2026-04-24
+最后更新：2026-04-29
 
 本目录仅保留当前可复现实验入口与结果记录。过时说明已清理。
 
@@ -32,6 +32,14 @@
 - 统一种子：`seed=42`
 - 统一设备：`cuda`
 - 通用评估子集：按实验目标采用 `n_samples=64` / `max_samples=128` / `max_samples=256`（消融为 `train/val/test=1200/400/400`）
+
+## 缓存文件策略
+
+- 保留：
+  - `experiments/adversarial_robustness/cache/materialized_seed42_shots15_ns64.pt`
+  - `experiments/adversarial_robustness/cache/materialized_seed42_shots15_ns128.pt`
+  - `experiments/ablation_study/cache/materialized_seed42_shots8_tr1200_va400_te400.pt`
+- 原因：以上缓存与当前文档参数和脚本命名规则完全匹配，能直接命中复用，显著减少重复运行耗时。
 
 ## 结果入口
 
