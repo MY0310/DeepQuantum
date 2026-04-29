@@ -18,9 +18,9 @@ def run_command(cmd, description):
 
     result = subprocess.run(cmd, shell=True)
     if result.returncode != 0:
-        print(f"❌ Error running: {cmd}")
+        print(f"[Error] command failed: {cmd}")
         return False
-    print(f"✓ Completed: {description}")
+    print(f"[Done] {description}")
     return True
 
 
@@ -65,7 +65,7 @@ def main():
     )
 
     if not success:
-        print("❌ GNN training failed. Exiting.")
+        print("[Error] GNN training failed. Exiting.")
         sys.exit(1)
 
     # Train GAT for comparison
@@ -75,7 +75,7 @@ def main():
     )
 
     if not success:
-        print("⚠️  GAT training failed, but continuing with GCN results.")
+        print("[Warn] GAT training failed, but continuing with GCN results.")
 
     # Step 3: Generate comparison analysis
     print("\n" + "="*80)
@@ -84,21 +84,21 @@ def main():
 
     success = run_command(
         f"python {ANALYSIS_SCRIPT} "
-        f"--quantum-dir outputs/elliptic_fast_test "
+        f"--quantum-dir experiment_summary.json "
         f"--classical-dir gnn_baseline/outputs "
         f"--output-dir gnn_baseline/analysis",
         "Quantum vs Classical Comparison Analysis"
     )
 
     if not success:
-        print("❌ Analysis failed. Check results paths.")
+        print("[Error] Analysis failed. Check results paths.")
         sys.exit(1)
 
     # Final summary
     print("""
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║                     ✓ WORKFLOW COMPLETE                             ║
+║                     WORKFLOW COMPLETE                               ║
 ║                                                                      ║
 ║  Results saved to:                                                   ║
 ║    - gnn_baseline/outputs/          (GNN training results)          ║

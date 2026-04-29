@@ -16,6 +16,67 @@ from pathlib import Path
 import pickle
 
 
+def inspect_quantum_cache(cache: Dict, max_nodes: int) -> Dict[str, float]:
+    """
+    Inspect cache quality to detect degenerate cached quantum parameters.
+    """
+    sq = np.asarray(cache.get("squeezing"))
+    U = np.asarray(cache.get("unitary"))
+    meta = cache.get("metadata", [])
+
+    if sq.ndim != 2 or U.ndim != 3:
+        return {"valid_shape": 0.0}
+
+    n = float(sq.shape[0]) if sq.shape[0] > 0 else 1.0
+    sq_row_norm = np.linalg.norm(sq, axis=1)
+    sq_zero_ratio = float(np.mean(sq_row_norm == 0))
+
+    eye = np.eye(max_nodes, dtype=U.dtype)
+    max_abs_diff = np.max(np.abs(U - eye), axis=(1, 2))
+    unitary_identity_ratio = float(np.mean(max_abs_diff < 1e-8))
+
+    center_ratio = 0.0
+    if isinstance(meta, list) and len(meta) > 0:
+        center_count = sum(
+            1 for m in meta if isinstance(m, dict) and ("center_node" in m)
+        )
+        center_ratio = float(center_count / max(1, len(meta)))
+
+    return {
+        "valid_shape": 1.0,
+        "num_samples": float(sq.shape[0]),
+        "sq_zero_ratio": sq_zero_ratio,
+        "unitary_identity_ratio": unitary_identity_ratio,
+        "center_ratio": center_ratio,
+        "finite_ok": float(np.isfinite(sq).all() and np.isfinite(U).all()),
+    }
+
+
+def is_quantum_cache_usable(cache: Dict, max_nodes: int) -> bool:
+    """
+    Conservative cache validation.
+    """
+    try:
+        required = {"squeezing", "unitary", "metadata"}
+        if not required.issubset(set(cache.keys())):
+            return False
+
+        report = inspect_quantum_cache(cache, max_nodes=max_nodes)
+        if report.get("valid_shape", 0.0) < 1.0:
+            return False
+        if report.get("finite_ok", 0.0) < 1.0:
+            return False
+        # Missing center_node mapping for a large fraction often indicates old fallback cache.
+        if report.get("center_ratio", 0.0) < 0.95:
+            return False
+        # Fully degenerate cache (all-zero squeezing + all-identity unitary) is unusable.
+        if report.get("sq_zero_ratio", 1.0) > 0.98 and report.get("unitary_identity_ratio", 1.0) > 0.98:
+            return False
+        return True
+    except Exception:
+        return False
+
+
 class FinancialGraphDataset(Dataset):
     """
     PyTorch Dataset for financial transaction graphs with quantum encoding.
@@ -78,6 +139,14 @@ class FinancialGraphDataset(Dataset):
 
         # Precompute quantum parameters (or load from cache)
         self.quantum_params = self._compute_or_load_quantum_params()
+        self.cache_node_to_idx = {}
+        for idx, meta in enumerate(self.quantum_params.get("metadata", [])):
+            if isinstance(meta, dict) and "center_node" in meta:
+                try:
+                    self.cache_node_to_idx[int(meta["center_node"])] = idx
+                except (TypeError, ValueError):
+                    continue
+        self._ondemand_quantum_cache = {}
 
         print(f"Dataset initialized: {self.num_nodes} nodes, "
               f"{self.graph.number_of_edges()} edges")
@@ -224,7 +293,16 @@ class FinancialGraphDataset(Dataset):
         if cache_path is not None and cache_path.exists():
             print(f"Loading cached quantum parameters from {cache_path}")
             with open(cache_path, "rb") as f:
-                return pickle.load(f)
+                cached = pickle.load(f)
+            if is_quantum_cache_usable(cached, max_nodes=self.max_nodes):
+                return cached
+            report = inspect_quantum_cache(cached, max_nodes=self.max_nodes)
+            print(
+                "Warning: Detected invalid/degenerate quantum cache. Recomputing...\n"
+                f"  sq_zero_ratio={report.get('sq_zero_ratio', -1):.4f}, "
+                f"unitary_identity_ratio={report.get('unitary_identity_ratio', -1):.4f}, "
+                f"center_ratio={report.get('center_ratio', -1):.4f}"
+            )
 
         # Compute quantum parameters
         from utils.graph_utils import (
@@ -257,7 +335,7 @@ class FinancialGraphDataset(Dataset):
                 print(f"Warning: Failed to process node {node}: {e}")
                 squeezing_list.append(np.zeros(self.max_nodes))
                 unitary_list.append(np.eye(self.max_nodes))
-                metadata_list.append({"error": str(e)})
+                metadata_list.append({"center_node": int(node), "error": str(e)})
 
         # Convert to arrays
         quantum_params = {
@@ -290,9 +368,29 @@ class FinancialGraphDataset(Dataset):
         """
         node = self.nodes[idx]
 
-        # Get precomputed quantum parameters
-        squeezing = torch.from_numpy(self.quantum_params["squeezing"][idx])
-        unitary = torch.from_numpy(self.quantum_params["unitary"][idx])
+        # Get quantum parameters from cache by node id (not by local dataset index),
+        # and compute on-demand when missing.
+        cache_idx = self.cache_node_to_idx.get(int(node), None)
+        if cache_idx is not None:
+            squeezing_np = self.quantum_params["squeezing"][cache_idx]
+            unitary_np = self.quantum_params["unitary"][cache_idx]
+        else:
+            cached = self._ondemand_quantum_cache.get(int(node))
+            if cached is None:
+                from utils.graph_utils import preprocess_graph_for_quantum, SubgraphConfig
+
+                config = SubgraphConfig(max_nodes=self.max_nodes, radius=self.ego_radius, normalize=True)
+                try:
+                    squeeze, U, _, _ = preprocess_graph_for_quantum(self.graph, node, config)
+                except Exception:
+                    squeeze = np.zeros(self.max_nodes, dtype=np.float32)
+                    U = np.eye(self.max_nodes, dtype=np.float32)
+                cached = (squeeze.astype(np.float32), U.astype(np.float32))
+                self._ondemand_quantum_cache[int(node)] = cached
+            squeezing_np, unitary_np = cached
+
+        squeezing = torch.from_numpy(squeezing_np)
+        unitary = torch.from_numpy(unitary_np)
 
         # Get classical features
         if self.node_features is not None:

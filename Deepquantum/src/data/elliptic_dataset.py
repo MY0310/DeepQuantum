@@ -49,7 +49,7 @@ class EllipticPlusPlusDataset:
     The dataset consists of:
     - edgelist.csv: Transaction graph (source, target, timestamp)
     - features.csv: Node features (166 aggregated features)
-    - classes.csv: Node labels (0=unknown, 1=licit, 2=illicit)
+    - classes.csv: Node labels (0=unknown, 1=illicit, 2=licit)
 
     Paper: "Elliptic++: An Enhanced Bitcoin Transaction Network Dataset
             for Anti-Money Laundering and Financial Fraud Detection"
@@ -221,8 +221,9 @@ class EllipticPlusPlusDataset:
         self.features_df = self.features_df.loc[common_nodes]
         self.classes_df = self.classes_df.loc[common_nodes]
 
-        # Convert labels: 1 -> 0 (licit), 2 -> 1 (illicit)
-        self.classes_df['label'] = self.classes_df['class'].map({1: 0, 2: 1})
+        # Convert labels to binary fraud target:
+        # 1 -> 1 (illicit/fraud), 2 -> 0 (licit/normal)
+        self.classes_df['label'] = self.classes_df['class'].map({1: 1, 2: 0})
 
         print(f"    Final: {len(self.features_df)} labeled nodes")
         print(f"      Licit (normal): {(self.classes_df['label'] == 0).sum()}")

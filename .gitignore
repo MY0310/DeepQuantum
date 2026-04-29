@@ -1,24 +1,19 @@
-# 忽略压缩包
+# Archives
 Deepquantum.zip
-
-# 忽略整个数据原始目录
-Deepquantum/data/
-
-# 压缩包文件
 *.zip
 *.rar
 *.7z
-*.tarS
+*.tar
 *.gz
 
-# Python
+# Python caches/build
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 build/
-develop-eggs/
 dist/
 downloads/
 eggs/
@@ -32,33 +27,32 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.mypy_cache/
 
-# IDE
+# IDE/editor
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# 输出文件
-outputs
-
-# Claude Code
-.claude/
-
-#文章
-article/
-
-#项目手册
-project/
-
-#codex
-.codex/
-
-#项目文档
-项目文档.md
-
-#训练日志
+# Project-generated outputs/data artifacts
+outputs/
+Deepquantum/outputs/
 Deepquantum/logs/
+Deepquantum/data/
+Deepquantum/gnn_baseline/outputs/
+Deepquantum/experiments/**/results/
+Deepquantum/experiments/**/checkpoints/
 
-#对抗实验
-Deepquantum/experiments/
+# Local work dirs
+.claude/
+.codex/
+article/
+project/
+new-gnn/
+Deepquantum/.mplconfig/
+
+#experiments
+
+#visualization

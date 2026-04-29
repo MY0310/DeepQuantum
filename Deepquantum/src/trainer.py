@@ -86,10 +86,29 @@ class QGADTrainer:
             "val_f1": [],
             "val_auc": []
         }
+        self.best_state_dict = None
 
         # Optimizers
         self.quantum_optimizer = None
         self.classifier_optimizer = None
+
+    def _get_base_model(self):
+        return self.model.module if hasattr(self.model, "module") else self.model
+
+    def _uses_real_deepquantum(self) -> bool:
+        try:
+            base = self._get_base_model()
+            return bool(getattr(base.quantum_extractor.gbs_kernel, "has_deepquantum", False))
+        except Exception:
+            return False
+
+    def _quantum_inputs_on_cpu(self) -> bool:
+        """
+        For real DeepQuantum path, keep squeezing/unitary on CPU to avoid
+        wasteful GPU->CPU round-trips inside gbs_kernel forward.
+        """
+        is_single_device = not hasattr(self.model, "module")
+        return is_single_device and str(self.device).startswith("cuda") and self._uses_real_deepquantum()
 
     def setup_optimizers(
         self,
@@ -148,9 +167,13 @@ class QGADTrainer:
                 break
 
             # Move to device
-            squeezing = batch["squeezing"].to(self.device)
-            unitary = batch["unitary"].to(self.device)
-            labels = batch["label"].to(self.device)
+            if self._quantum_inputs_on_cpu():
+                squeezing = batch["squeezing"]
+                unitary = batch["unitary"]
+            else:
+                squeezing = batch["squeezing"].to(self.device, non_blocking=True)
+                unitary = batch["unitary"].to(self.device, non_blocking=True)
+            labels = batch["label"].to(self.device, non_blocking=True)
 
             # Train quantum kernel
             metrics = self.model.train_quantum_kernel(
@@ -179,10 +202,14 @@ class QGADTrainer:
 
         for batch in pbar:
             # Move to device
-            squeezing = batch["squeezing"].to(self.device)
-            unitary = batch["unitary"].to(self.device)
-            classical = batch["classical_features"].to(self.device)
-            labels = batch["label"].to(self.device)
+            if self._quantum_inputs_on_cpu():
+                squeezing = batch["squeezing"]
+                unitary = batch["unitary"]
+            else:
+                squeezing = batch["squeezing"].to(self.device, non_blocking=True)
+                unitary = batch["unitary"].to(self.device, non_blocking=True)
+            classical = batch["classical_features"].to(self.device, non_blocking=True)
+            labels = batch["label"].to(self.device, non_blocking=True)
 
             # Train classifier
             metrics = self.model.train_hybrid_classifier(
@@ -224,10 +251,14 @@ class QGADTrainer:
 
         for batch in tqdm(val_loader, desc="Evaluating"):
             # Move to device
-            squeezing = batch["squeezing"].to(self.device)
-            unitary = batch["unitary"].to(self.device)
-            classical = batch["classical_features"].to(self.device)
-            labels = batch["label"].to(self.device)
+            if self._quantum_inputs_on_cpu():
+                squeezing = batch["squeezing"]
+                unitary = batch["unitary"]
+            else:
+                squeezing = batch["squeezing"].to(self.device, non_blocking=True)
+                unitary = batch["unitary"].to(self.device, non_blocking=True)
+            classical = batch["classical_features"].to(self.device, non_blocking=True)
+            labels = batch["label"].to(self.device, non_blocking=True)
 
             # Forward pass
             logits = self.model(squeezing, unitary, classical)
@@ -321,10 +352,15 @@ class QGADTrainer:
             # Save checkpoint
             if val_metrics["f1"] > best_f1:
                 best_f1 = val_metrics["f1"]
-                self.save_checkpoint(f"best_f1_epoch{epoch}.pt")
-                print(f"Saved best model (F1: {best_f1:.4f})")
+                self.best_state_dict = {
+                    k: v.detach().cpu().clone()
+                    for k, v in self.model.state_dict().items()
+                }
+                print(f"Tracked best model (F1: {best_f1:.4f})")
 
         print(f"\nTraining completed! Best F1: {best_f1:.4f}")
+        if self.best_state_dict is not None:
+            self.model.load_state_dict(self.best_state_dict)
 
     def train_with_xgboost_fusion(
         self,
@@ -393,10 +429,14 @@ class QGADTrainer:
         labels = []
 
         for batch in tqdm(data_loader, desc="Extracting features"):
-            squeezing = batch["squeezing"].to(self.device)
-            unitary = batch["unitary"].to(self.device)
-            classical = batch["classical_features"].to(self.device)
-            label = batch["label"].to(self.device)
+            if self._quantum_inputs_on_cpu():
+                squeezing = batch["squeezing"]
+                unitary = batch["unitary"]
+            else:
+                squeezing = batch["squeezing"].to(self.device, non_blocking=True)
+                unitary = batch["unitary"].to(self.device, non_blocking=True)
+            classical = batch["classical_features"].to(self.device, non_blocking=True)
+            label = batch["label"].to(self.device, non_blocking=True)
 
             with torch.no_grad():
                 # Extract quantum features
@@ -420,8 +460,8 @@ class QGADTrainer:
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         torch.save({
             "model_state_dict": self.model.state_dict(),
-            "quantum_optimizer": self.quantum_optimizer.state_dict(),
-            "classifier_optimizer": self.classifier_optimizer.state_dict(),
+            "quantum_optimizer": self.quantum_optimizer.state_dict() if self.quantum_optimizer else None,
+            "classifier_optimizer": self.classifier_optimizer.state_dict() if self.classifier_optimizer else None,
             "history": self.history
         }, path)
 
@@ -431,8 +471,10 @@ class QGADTrainer:
         checkpoint = torch.load(path, map_location=self.device)
 
         self.model.load_state_dict(checkpoint["model_state_dict"])
-        self.quantum_optimizer.load_state_dict(checkpoint["quantum_optimizer"])
-        self.classifier_optimizer.load_state_dict(checkpoint["classifier_optimizer"])
+        if self.quantum_optimizer is not None and checkpoint.get("quantum_optimizer") is not None:
+            self.quantum_optimizer.load_state_dict(checkpoint["quantum_optimizer"])
+        if self.classifier_optimizer is not None and checkpoint.get("classifier_optimizer") is not None:
+            self.classifier_optimizer.load_state_dict(checkpoint["classifier_optimizer"])
         self.history = checkpoint["history"]
 
         print(f"Loaded checkpoint from {path}")

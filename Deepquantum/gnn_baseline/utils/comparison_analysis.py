@@ -1,19 +1,23 @@
 """
-Differential Analysis Tools for Quantum vs Classical GNN
-
-This module provides tools to analyze differences between quantum GBS
-and classical GNN approaches, including:
-1. Performance comparison
-2. Feature importance analysis
-3. Error pattern analysis
-4. Computational efficiency comparison
+Comparison tools for quantum (Q-GAD) vs classical GNN baselines.
 """
 
 import json
+import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_MPL_DIR = PROJECT_ROOT / ".mplconfig"
+_MPL_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(_MPL_DIR))
+os.environ.setdefault("MPLBACKEND", "Agg")
+
+
 import numpy as np
+import matplotlib
+matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
 from typing import Dict, List, Tuple
 import pandas as pd
 from scipy import stats
@@ -56,30 +60,86 @@ class QuantumClassicalComparator:
 
     def _load_quantum_results(self) -> Dict:
         """Load quantum experiment results."""
-        # Try to find test metrics file
-        test_metrics_path = self.quantum_dir / "elliptic_history.json"
-        history_path = self.quantum_dir / "elliptic_history.json"
-
         results = {}
 
-        if test_metrics_path.exists():
-            with open(test_metrics_path, 'r') as f:
-                results['metrics'] = json.load(f)
+        if self.quantum_dir.is_file():
+            with open(self.quantum_dir, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            if self.quantum_dir.name == "experiment_summary.json":
+                test = payload.get("test_results", {})
+                results["metrics"] = {
+                    "auc": test.get("auc", 0.0),
+                    "f1": test.get("f1", 0.0),
+                    "precision": test.get("precision", 0.0),
+                    "recall": test.get("recall", 0.0),
+                }
+                if "history" in payload:
+                    results["history"] = payload["history"]
+            else:
+                results["metrics"] = payload
+            return results
 
-        if history_path.exists():
-            with open(history_path, 'r') as f:
-                history = json.load(f)
-                results['history'] = history
+        candidate_metric_files = [
+            self.quantum_dir / "experiment_summary.json",
+            self.quantum_dir / "test_metrics.json",
+            self.quantum_dir / "metrics.json",
+            self.quantum_dir / "elliptic_history.json",
+        ]
+        candidate_history_files = [
+            self.quantum_dir / "history.json",
+            self.quantum_dir / "elliptic_history.json",
+        ]
+
+        for metrics_file in candidate_metric_files:
+            if not metrics_file.exists():
+                continue
+            with open(metrics_file, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            if metrics_file.name == "experiment_summary.json":
+                test = payload.get("test_results", {})
+                results["metrics"] = {
+                    "auc": test.get("auc", 0.0),
+                    "f1": test.get("f1", 0.0),
+                    "precision": test.get("precision", 0.0),
+                    "recall": test.get("recall", 0.0),
+                }
+                if "history" in payload:
+                    results["history"] = payload["history"]
+            else:
+                results["metrics"] = payload
+            break
+
+        for history_file in candidate_history_files:
+            if history_file.exists():
+                with open(history_file, "r", encoding="utf-8") as f:
+                    results["history"] = json.load(f)
+                break
 
         return results
 
     def _load_classical_results(self) -> Dict:
         """Load classical GNN experiment results."""
         results = {}
+        model_names = {"gcn", "gat", "sage", "gin"}
+
+        # Support both:
+        # 1) classical_dir = .../outputs (auto-pick latest experiment_*)
+        # 2) classical_dir = .../outputs/experiment_YYYYMMDD_HHMMSS
+        experiment_dirs = [
+            p for p in self.classical_dir.iterdir()
+            if p.is_dir() and p.name.startswith("experiment_")
+        ] if self.classical_dir.exists() else []
+
+        if experiment_dirs:
+            target_dir = sorted(experiment_dirs, key=lambda p: p.name)[-1]
+        else:
+            target_dir = self.classical_dir
 
         # Find all model directories
-        for model_dir in self.classical_dir.glob("*/"):
-            model_name = model_dir.name
+        for model_name in sorted(model_names):
+            model_dir = target_dir / model_name
+            if not model_dir.exists():
+                continue
 
             # Load metrics
             metrics_file = model_dir / f"{model_name}_test_metrics.json"
@@ -109,14 +169,23 @@ class QuantumClassicalComparator:
         # Quantum results
         if 'metrics' in self.quantum_results:
             q_metrics = self.quantum_results['metrics']
-            # Get final epoch metrics
             if 'val_auc' in q_metrics and len(q_metrics['val_auc']) > 0:
+                # History-style metrics (lists per epoch)
                 metrics_data.append({
                     'Model': 'Q-GAD (GBS)',
                     'AUC': q_metrics['val_auc'][-1],
                     'F1': q_metrics['val_f1'][-1],
                     'Precision': q_metrics.get('val_precision', [0])[-1],
                     'Recall': q_metrics.get('val_recall', [0])[-1]
+                })
+            elif 'auc' in q_metrics:
+                # Summary-style metrics (single scalar values)
+                metrics_data.append({
+                    'Model': 'Q-GAD (GBS)',
+                    'AUC': q_metrics.get('auc', 0),
+                    'F1': q_metrics.get('f1', 0),
+                    'Precision': q_metrics.get('precision', 0),
+                    'Recall': q_metrics.get('recall', 0)
                 })
 
         # Classical results
@@ -170,7 +239,7 @@ class QuantumClassicalComparator:
         plt.savefig(self.output_dir / "metrics_comparison.png", dpi=300, bbox_inches='tight')
         plt.close()
 
-        print(f"✓ Metric comparison plot saved to {self.output_dir / 'metrics_comparison.png'}")
+        print(f"[OK] Metric comparison plot saved to {self.output_dir / 'metrics_comparison.png'}")
 
     def analyze_training_dynamics(self):
         """Analyze training dynamics (convergence, stability)."""
@@ -232,7 +301,7 @@ class QuantumClassicalComparator:
         plt.savefig(self.output_dir / "training_dynamics.png", dpi=300, bbox_inches='tight')
         plt.close()
 
-        print(f"✓ Training dynamics plot saved to {self.output_dir / 'training_dynamics.png'}")
+        print(f"[OK] Training dynamics plot saved to {self.output_dir / 'training_dynamics.png'}")
 
     def compute_statistical_significance(self) -> pd.DataFrame:
         """
@@ -245,7 +314,7 @@ class QuantumClassicalComparator:
         print("Statistical Significance Analysis")
         print("=" * 80)
 
-        print("\n⚠️  Note: Proper statistical testing requires multiple runs (n >= 5)")
+        print("\n[Note] Proper statistical testing requires multiple runs (n >= 5)")
         print("   Current analysis provides theoretical comparison only.\n")
 
         df = self.compare_metrics()
@@ -299,15 +368,15 @@ class QuantumClassicalComparator:
             best_classical = df[df['Model'] != 'Q-GAD (GBS)']['AUC'].max()
 
             if q_auc > best_classical:
-                report.append("  ✓ Quantum approach shows superior performance")
+                report.append("  [OK] Quantum approach shows superior performance")
                 report.append("    Recommended for: High-stakes fraud detection")
                 report.append("    Consider: Computational cost vs accuracy gain")
             else:
-                report.append("  ⚠ Classical GNN matches or exceeds quantum performance")
+                report.append("  [Warn] Classical GNN matches or exceeds quantum performance")
                 report.append("    Recommended for: Production deployment")
                 report.append("    Consider: Training time, model complexity")
         else:
-            report.append("  ℹ Quantum results not available for comparison")
+                report.append("  [Info] Quantum results not available for comparison")
 
         report.append("")
 
@@ -327,7 +396,7 @@ class QuantumClassicalComparator:
             f.write("![Metrics Comparison](metrics_comparison.png)\n\n")
             f.write("![Training Dynamics](training_dynamics.png)\n")
 
-        print(f"\n✓ Comparison report saved to {self.output_dir}")
+        print(f"\n[OK] Comparison report saved to {self.output_dir}")
 
 
 def main():
@@ -335,8 +404,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Compare quantum and classical GNN results')
-    parser.add_argument('--quantum-dir', type=str, default='./outputs/elliptic_fast_test',
-                       help='Path to quantum experiment results')
+    parser.add_argument('--quantum-dir', type=str, default='./experiment_summary.json',
+                       help='Path to quantum results directory or experiment_summary.json')
     parser.add_argument('--classical-dir', type=str, default='./gnn_baseline/outputs',
                        help='Path to classical GNN results')
     parser.add_argument('--output-dir', type=str, default='./gnn_baseline/analysis',

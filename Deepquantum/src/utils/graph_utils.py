@@ -169,9 +169,9 @@ def takagi_autonne_decomposition(
     Reference:
         Takagi, T. (1925). On an algebraic problem related to matric elements.
     """
-    # Ensure symmetric
+    # Force symmetry for directed/noisy inputs.
     if not np.allclose(matrix, matrix.T, atol=tol):
-        raise ValueError("Matrix must be symmetric for Takagi decomposition")
+        matrix = 0.5 * (matrix + matrix.T)
 
     # Use SVD for symmetric matrices
     # For real symmetric matrices, this is equivalent to eigendecomposition
@@ -190,7 +190,11 @@ def takagi_autonne_decomposition(
         # Ensure non-negative eigenvalues for quantum encoding
         lambda_vals = np.maximum(lambda_vals, 0)
 
-    return U.astype(np.complex128), lambda_vals.astype(np.complex128)
+    # Takagi singular values should be real and non-negative.
+    lambda_vals = np.real_if_close(lambda_vals)
+    lambda_vals = np.abs(np.asarray(lambda_vals, dtype=np.float64))
+
+    return U.astype(np.float64), lambda_vals
 
 
 def matrix_to_squeezing_params(
@@ -254,7 +258,10 @@ def preprocess_graph_for_quantum(
     subgraph = extract_ego_network(graph, center_node, config)
 
     # Step 2: Convert to adjacency matrix
-    adj = nx.to_numpy_array(subgraph)
+    adj = nx.to_numpy_array(subgraph, dtype=np.float64)
+    # Elliptic graph is directed; convert to symmetric coupling matrix for GBS encoding.
+    adj = np.maximum(adj, adj.T)
+    np.fill_diagonal(adj, 0.0)
 
     # Step 3: Normalize
     if config.normalize:

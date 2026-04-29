@@ -5,23 +5,41 @@ Includes:
 - Device management
 - Random seed setting
 - Metrics computation
-- Visualization utilities
 """
 
+import os
 import torch
 import numpy as np
 import random
-import matplotlib.pyplot as plt
-from typing import Dict, List, Optional
+from typing import Dict, Optional, Tuple
 from pathlib import Path
 
-# Make seaborn optional
-try:
-    import seaborn as sns
-    HAS_SEABORN = True
-except ImportError:
-    HAS_SEABORN = False
-    sns = None
+
+def _configure_matplotlib_runtime(per_process: bool = True) -> Path:
+    """
+    Configure matplotlib cache dir to a writable project-local path.
+
+    This avoids Windows permission/lock issues at:
+    `C:\\Users\\...\\.matplotlib\\fontlist-*.json.matplotlib-lock`
+    especially under multi-process workloads.
+    """
+    project_root = Path(__file__).resolve().parents[2]
+    mpl_root = project_root / ".mplconfig"
+    mpl_root.mkdir(parents=True, exist_ok=True)
+
+    if per_process:
+        mpl_dir = mpl_root / f"pid_{os.getpid()}"
+    else:
+        mpl_dir = mpl_root
+    mpl_dir.mkdir(parents=True, exist_ok=True)
+
+    os.environ["MPLCONFIGDIR"] = str(mpl_dir)
+    os.environ.setdefault("MPLBACKEND", "Agg")
+    return mpl_dir
+
+
+# Configure once at module import for the current process.
+_configure_matplotlib_runtime(per_process=True)
 
 
 def set_seed(seed: int = 42):
@@ -125,6 +143,72 @@ def compute_metrics(
     return metrics
 
 
+def logits_to_binary_predictions(
+    logits: torch.Tensor,
+    threshold: float = 0.5,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Convert binary-class logits into fraud probability and thresholded labels.
+
+    Args:
+        logits: Model logits with shape [batch, 2]
+        threshold: Decision threshold applied on fraud probability
+
+    Returns:
+        probs_pos: Fraud-class probabilities [batch]
+        preds: Thresholded predictions {0,1} [batch]
+    """
+    probs = torch.softmax(logits, dim=1)
+    probs_pos = probs[:, 1]
+    preds = (probs_pos >= float(threshold)).long()
+    return probs_pos, preds
+
+
+def find_best_f1_threshold(
+    y_true: np.ndarray,
+    y_prob: np.ndarray,
+    min_threshold: float = 0.01,
+    max_threshold: float = 0.99,
+    num_thresholds: int = 199,
+) -> Dict[str, float]:
+    """
+    Grid-search threshold by maximizing F1 on validation data.
+
+    Args:
+        y_true: True binary labels
+        y_prob: Fraud probabilities
+        min_threshold: Minimum threshold to test
+        max_threshold: Maximum threshold to test
+        num_thresholds: Number of grid points
+
+    Returns:
+        Dictionary with best threshold and related metrics.
+    """
+    from sklearn.metrics import f1_score, precision_score, recall_score
+
+    y_true = np.asarray(y_true).astype(int)
+    y_prob = np.asarray(y_prob).astype(float)
+    thresholds = np.linspace(min_threshold, max_threshold, num_thresholds)
+
+    best = {
+        "threshold": 0.5,
+        "f1": -1.0,
+        "precision": 0.0,
+        "recall": 0.0,
+    }
+    for t in thresholds:
+        y_pred = (y_prob >= t).astype(int)
+        f1 = float(f1_score(y_true, y_pred, zero_division=0))
+        if f1 > best["f1"]:
+            best = {
+                "threshold": float(t),
+                "f1": f1,
+                "precision": float(precision_score(y_true, y_pred, zero_division=0)),
+                "recall": float(recall_score(y_true, y_pred, zero_division=0)),
+            }
+    return best
+
+
 def print_metrics(metrics: Dict[str, float], title: str = "Metrics"):
     """
     Print metrics in a formatted way.
@@ -142,143 +226,6 @@ def print_metrics(metrics: Dict[str, float], title: str = "Metrics"):
             print(f"  {key}: {value:.4f}")
         else:
             print(f"  {key}: {value}")
-
-
-def plot_training_history(
-    history: Dict[str, List[float]],
-    save_path: Optional[str] = None
-):
-    """
-    Plot training history.
-
-    Args:
-        history: Training history dictionary
-        save_path: Path to save figure
-    """
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-
-    # Loss
-    if "train_loss" in history and "val_loss" in history:
-        axes[0].plot(history["train_loss"], label="Train")
-        axes[0].plot(history["val_loss"], label="Validation")
-        axes[0].set_xlabel("Epoch")
-        axes[0].set_ylabel("Loss")
-        axes[0].set_title("Loss")
-        axes[0].legend()
-
-    # Accuracy
-    if "train_acc" in history and "val_acc" in history:
-        axes[1].plot(history["train_acc"], label="Train")
-        axes[1].plot(history["val_acc"], label="Validation")
-        axes[1].set_xlabel("Epoch")
-        axes[1].set_ylabel("Accuracy")
-        axes[1].set_title("Accuracy")
-        axes[1].legend()
-
-    # F1 / AUC
-    if "val_f1" in history:
-        axes[2].plot(history["val_f1"], label="F1", marker="o")
-    if "val_auc" in history:
-        axes[2].plot(history["val_auc"], label="AUC", marker="s")
-
-    axes[2].set_xlabel("Epoch")
-    axes[2].set_ylabel("Score")
-    axes[2].set_title("Validation Metrics")
-    axes[2].legend()
-
-    plt.tight_layout()
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-        print(f"Plot saved to {save_path}")
-
-    plt.show()
-
-
-def plot_confusion_matrix(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    save_path: Optional[str] = None
-):
-    """
-    Plot confusion matrix.
-
-    Args:
-        y_true: True labels
-        y_pred: Predicted labels
-        save_path: Path to save figure
-    """
-    from sklearn.metrics import confusion_matrix
-
-    cm = confusion_matrix(y_true, y_pred)
-
-    plt.figure(figsize=(6, 5))
-
-    if HAS_SEABORN:
-        sns.heatmap(
-            cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=["Normal", "Fraud"],
-            yticklabels=["Normal", "Fraud"]
-        )
-    else:
-        # Fallback without seaborn
-        plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-        plt.colorbar()
-        tick_marks = np.arange(2)
-        plt.xticks(tick_marks, ["Normal", "Fraud"])
-        plt.yticks(tick_marks, ["Normal", "Fraud"])
-
-        # Add text annotations
-        thresh = cm.max() / 2
-        for i in range(cm.shape[0]):
-            for j in range(cm.shape[1]):
-                plt.text(j, i, format(cm[i, j], "d"),
-                        ha="center", va="center",
-                        color="white" if cm[i, j] > thresh else "black")
-
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title("Confusion Matrix")
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-        print(f"Plot saved to {save_path}")
-
-    plt.show()
-
-
-def plot_roc_curve(
-    y_true: np.ndarray,
-    y_prob: np.ndarray,
-    save_path: Optional[str] = None
-):
-    """
-    Plot ROC curve.
-
-    Args:
-        y_true: True labels
-        y_prob: Predicted probabilities
-        save_path: Path to save figure
-    """
-    from sklearn.metrics import roc_curve, auc
-
-    fpr, tpr, _ = roc_curve(y_true, y_prob)
-    roc_auc = auc(fpr, tpr)
-
-    plt.figure(figsize=(6, 5))
-    plt.plot(fpr, tpr, label=f"ROC (AUC = {roc_auc:.4f})")
-    plt.plot([0, 1], [0, 1], "k--", label="Random")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("ROC Curve")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-        print(f"Plot saved to {save_path}")
-
-    plt.show()
 
 
 def create_checkpoint_dir(base_dir: str, experiment_name: str) -> Path:
@@ -345,6 +292,98 @@ def load_model(
     print(f"Model loaded from {path}")
 
     return checkpoint.get("metadata", {})
+
+
+def load_qgad_checkpoint_model(
+    checkpoint_path: str,
+    device: str = "cpu",
+    n_modes: int = 20,
+    n_shots: Optional[int] = None,
+):
+    """
+    Rebuild QGADSystem from checkpoint weights by inferring architecture dims.
+
+    This prevents strict shape mismatch when hidden dims differ between
+    historical checkpoints and current defaults.
+    """
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    state_dict = checkpoint["model_state_dict"]
+
+    # Infer classical input dimension from first classical linear layer.
+    c_in = 166
+    for k, v in state_dict.items():
+        if "hybrid_classifier.classical_encoder.encoder" in k and k.endswith(".weight") and v.ndim == 2:
+            c_in = int(v.shape[1])
+            break
+
+    # Infer hidden dims from classical encoder linear layer outputs.
+    layer_shapes = []
+    for k, v in state_dict.items():
+        if "hybrid_classifier.classical_encoder.encoder" in k and k.endswith(".weight") and v.ndim == 2:
+            try:
+                idx = int(k.split(".")[3])  # ...encoder.{idx}.weight
+            except (IndexError, ValueError):
+                continue
+            layer_shapes.append((idx, int(v.shape[0])))
+    layer_shapes.sort(key=lambda x: x[0])
+    hidden_dims = [d for _, d in layer_shapes] if layer_shapes else [64, 32]
+    # FeatureEncoder appends a final projection to hidden_dims[-1], which appears
+    # as a duplicated trailing output dim in checkpoint linear layers.
+    if len(hidden_dims) >= 2 and hidden_dims[-1] == hidden_dims[-2]:
+        hidden_dims = hidden_dims[:-1]
+
+    # Infer quantum feature input dim.
+    q_in = 9
+    for k, v in state_dict.items():
+        if "hybrid_classifier.quantum_encoder.encoder" in k and k.endswith(".weight") and v.ndim == 2:
+            q_in = int(v.shape[1])
+            break
+
+    from gbs.gbs_kernel import GBSConfig
+    from models.hybrid_classifier import HybridConfig, QGADSystem
+
+    # Re-assert per-process MPL runtime before creating the model, because
+    # DeepQuantum import path may trigger matplotlib font-cache operations.
+    _configure_matplotlib_runtime(per_process=True)
+
+    gbs_config = GBSConfig(
+        n_modes=n_modes,
+        n_shots=int(n_shots) if n_shots is not None else 100,
+        backend="gaussian",
+        use_displacement=True,
+        device=device,
+    )
+    hybrid_config = HybridConfig(
+        quantum_feature_dim=q_in,
+        classical_feature_dim=c_in,
+        hidden_dims=hidden_dims,
+        dropout=0.1,
+        device=device,
+    )
+    model = QGADSystem(
+        gbs_config=gbs_config,
+        hybrid_config=hybrid_config,
+        use_xgboost_fusion=False,
+    )
+    incompatible = model.load_state_dict(state_dict, strict=False)
+    model = model.to(device)
+    model.eval()
+
+    if n_shots is not None:
+        model.quantum_extractor.gbs_kernel.config.n_shots = int(n_shots)
+
+    if len(incompatible.missing_keys) > 0 or len(incompatible.unexpected_keys) > 0:
+        print(
+            "[Checkpoint] Non-strict load: "
+            f"missing={len(incompatible.missing_keys)}, "
+            f"unexpected={len(incompatible.unexpected_keys)}"
+        )
+
+    return model, checkpoint, {
+        "classical_feature_dim": c_in,
+        "quantum_feature_dim": q_in,
+        "hidden_dims": hidden_dims,
+    }
 
 
 class EarlyStopping:

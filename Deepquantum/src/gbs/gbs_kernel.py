@@ -33,6 +33,7 @@ class GBSConfig:
     # Measurement mode
     measurement_mode: str = "threshold"  # 'threshold' or 'pnr' (photon number resolving)
     threshold: float = 0.5  # Detection threshold for threshold mode
+    verbose: bool = False  # Verbose logging for circuit creation/sampling
 
 
 class GBSKernel(nn.Module):
@@ -54,13 +55,15 @@ class GBSKernel(nn.Module):
         super().__init__()
         self.config = config
         self.n_modes = config.n_modes
+        self.verbose = bool(getattr(config, "verbose", False))
 
         # Try to import DeepQuantum
         try:
             import deepquantum as dq
             self.dq = dq
             self.has_deepquantum = True
-            print(f"DeepQuantum imported successfully")
+            if self.verbose:
+                print("DeepQuantum imported successfully")
         except ImportError:
             print("Warning: DeepQuantum not available, using mock implementation")
             print("Install with: pip install git+https://github.com/turingq/deepquantum.git")
@@ -125,21 +128,24 @@ class GBSKernel(nn.Module):
                     cutoff=self.config.cutoff,
                     detector=detector  # Set detector type
                 )
-                print(f"[OK] Created QumodeCircuit:")
-                print(f"    nmode={self.n_modes}")
-                print(f"    init_state='vac' (vacuum)")
-                print(f"    backend={self.config.backend}")
-                print(f"    cutoff={self.config.cutoff}")
-                print(f"    detector={detector}")
+                if self.verbose:
+                    print(f"[OK] Created QumodeCircuit:")
+                    print(f"    nmode={self.n_modes}")
+                    print(f"    init_state='vac' (vacuum)")
+                    print(f"    backend={self.config.backend}")
+                    print(f"    cutoff={self.config.cutoff}")
+                    print(f"    detector={detector}")
                 return circuit
             except Exception as e:
                 last_error = e
-                print(f"  QumodeCircuit creation failed: {e}")
+                if self.verbose:
+                    print(f"  QumodeCircuit creation failed: {e}")
 
         if hasattr(self.dq, 'PhotonicCircuit'):
             try:
                 circuit = self.dq.PhotonicCircuit(n=self.n_modes)
-                print(f"[OK] Created PhotonicCircuit with n={self.n_modes}")
+                if self.verbose:
+                    print(f"[OK] Created PhotonicCircuit with n={self.n_modes}")
                 return circuit
             except Exception as e:
                 last_error = e
@@ -147,7 +153,8 @@ class GBSKernel(nn.Module):
         if hasattr(self.dq, 'Circuit'):
             try:
                 circuit = self.dq.Circuit(self.n_modes)
-                print(f"[OK] Created Circuit with {self.n_modes} modes")
+                if self.verbose:
+                    print(f"[OK] Created Circuit with {self.n_modes} modes")
                 return circuit
             except Exception as e:
                 last_error = e
@@ -337,7 +344,8 @@ class GBSKernel(nn.Module):
 
             # Step 1: Execute circuit
             _ = circuit()  # Execute to prepare the state
-            print(f"  [OK] Circuit executed")
+            if self.verbose:
+                print("  [OK] Circuit executed")
 
             # Step 2: Measure to get samples
             wires = list(range(self.n_modes))  # Measure all modes
@@ -348,7 +356,8 @@ class GBSKernel(nn.Module):
                     wires=wires,
                     with_prob=False
                 )
-                print(f"  [OK] measure() returned: {type(result)}")
+                if self.verbose:
+                    print(f"  [OK] measure() returned: {type(result)}")
 
                 # Parse the result from measure()
                 # Format: {|0000>: 8, |0020>: 1, |2020>: 1}
@@ -361,7 +370,8 @@ class GBSKernel(nn.Module):
                     # DeepQuantum returns histogram: {FockState: count}
                     # Convert to sample array [n_shots, n_modes]
 
-                    print(f"  Measurement histogram: {len(result)} unique states")
+                    if self.verbose:
+                        print(f"  Measurement histogram: {len(result)} unique states")
 
                     samples_list = []
                     for state_obj, count in result.items():
@@ -386,12 +396,14 @@ class GBSKernel(nn.Module):
 
                     # Convert to numpy array
                     samples = np.array(samples_list, dtype=np.float32)
-                    print(f"  [OK] Converted to samples array: {samples.shape}")
+                    if self.verbose:
+                        print(f"  [OK] Converted to samples array: {samples.shape}")
 
                 else:
                     raise ValueError(f"Unexpected measure() return type: {type(result)}")
 
-                print(f"  [OK] Samples shape: {samples.shape}, dtype: {samples.dtype}")
+                if self.verbose:
+                    print(f"  [OK] Samples shape: {samples.shape}, dtype: {samples.dtype}")
 
                 # Ensure correct shape [n_shots, n_modes]
                 if samples.ndim == 1:
@@ -549,9 +561,11 @@ class GBSKernel(nn.Module):
             # Create fresh circuit for this sample
             circuit = self._create_circuit()
 
-            # Get parameters as numpy
-            squeeze_np = squeezing_params[b].detach().cpu().numpy()
-            unitary_np = unitary[b].detach().cpu().numpy()
+            # Get parameters as numpy (avoid unnecessary GPU->CPU copies when already on CPU)
+            sq = squeezing_params[b].detach()
+            uu = unitary[b].detach()
+            squeeze_np = sq.numpy() if sq.device.type == "cpu" else sq.cpu().numpy()
+            unitary_np = uu.numpy() if uu.device.type == "cpu" else uu.cpu().numpy()
 
             # Encode graph structure
             self.encode_graph(circuit, squeeze_np, unitary_np)

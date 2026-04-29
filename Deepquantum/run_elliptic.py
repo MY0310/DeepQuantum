@@ -11,14 +11,17 @@ This script provides a complete pipeline for:
 import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 import torch
 from torch.utils.data import DataLoader
 from data.financial_dataset import load_elliptic_dataset, collate_fn
 from trainer import create_model_and_trainer
 from utils.helpers import set_seed, get_device, print_metrics
+from visualization.common_plots import plot_training_history
 
 
 def main():
@@ -33,12 +36,12 @@ def main():
     # Load Elliptic++ dataset
     print("\nLoading Elliptic++ dataset...")
     train_dataset, test_dataset = load_elliptic_dataset(
-        data_dir="./data/elliptic",
+        data_dir=str(PROJECT_ROOT / "data" / "elliptic"),
         max_nodes=20,
         ego_radius=1.5,
         train_periods=(1, 34),    # Periods 1-34 for training
         test_periods=(35, 49),    # Periods 35-49 for testing
-        cache_dir="./data/elliptic/processed"
+        cache_dir=str(PROJECT_ROOT / "data" / "elliptic" / "processed")
     )
 
     print(f"\nDataset statistics:")
@@ -87,6 +90,10 @@ def main():
         device=device,
         use_parallel=False  # Set to True if using multiple GPUs
     )
+    trainer.checkpoint_dir = PROJECT_ROOT / "checkpoints"
+    trainer.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    trainer.log_dir = PROJECT_ROOT / "logs"
+    trainer.log_dir.mkdir(parents=True, exist_ok=True)
     trainer.setup_optimizers(quantum_lr=1e-3, classifier_lr=1e-3)
 
     # Train
@@ -94,14 +101,17 @@ def main():
     print("Starting Training")
     print("="*60)
 
-    # Check if using mock implementation
-    if not model.quantum_extractor.gbs_kernel.has_deepquantum:
-        print("Note: Using mock quantum implementation")
-        quantum_epochs = 0
-        hybrid_epochs = 10
-    else:
-        quantum_epochs = 1
-        hybrid_epochs = 1
+    # Enforce real DeepQuantum backend (no mock fallback allowed)
+    has_real_backend = bool(getattr(model.quantum_extractor.gbs_kernel, "has_deepquantum", False))
+    print(f"Real DeepQuantum backend: {has_real_backend}")
+    if not has_real_backend:
+        raise RuntimeError(
+            "DeepQuantum backend unavailable. This script forbids mock backend. "
+            "Please run in an environment with deepquantum installed."
+        )
+
+    quantum_epochs = 1
+    hybrid_epochs = 1
 
     trainer.train_alternating(
         train_loader,
@@ -120,14 +130,13 @@ def main():
     print_metrics(test_metrics, "Test Set Metrics")
 
     # Save results
-    output_dir = Path("./outputs/elliptic_results")
+    output_dir = PROJECT_ROOT / "outputs" / "elliptic_results"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     trainer.save_checkpoint("elliptic_model.pt")
     trainer.save_history("elliptic_history.json")
 
     # Plot training curves
-    from utils.helpers import plot_training_history
     plot_training_history(
         trainer.history,
         save_path=str(output_dir / "training_curves.png")

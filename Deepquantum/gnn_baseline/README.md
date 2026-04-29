@@ -1,222 +1,79 @@
-# GNN Baseline for Q-GAD Comparison
+# GNN Baseline（已按 2026-04-23 新结果整理）
 
-Classical Graph Neural Network baselines for fair comparison with quantum Gaussian Boson Sampling (GBS) approach on the Elliptic++ Bitcoin fraud detection dataset.
+本目录用于维护 Q-GAD 的经典 GNN 对照实验（GCN / GAT / GraphSAGE / GIN）。
 
-## 📁 Directory Structure
+## 当前有效结构（与脚本输出一致）
 
-```
+```text
 gnn_baseline/
 ├── models/
-│   ├── __init__.py
-│   ├── gnn_models.py          # GNN architectures (GCN, GAT, GraphSAGE, GIN)
-│   └── gnn_trainer.py         # Training pipeline
+│   ├── gnn_models.py
+│   └── gnn_trainer.py
 ├── utils/
-│   └── comparison_analysis.py # Quantum vs classical comparison tools
-├── outputs/                   # Experiment results (auto-generated)
-├── run_gnn_baseline.py        # Main experiment script
-└── README.md                  # This file
+│   └── comparison_analysis.py
+├── outputs/
+│   └── experiment_YYYYMMDD_HHMMSS/
+│       ├── experiment_summary.json
+│       ├── table2_metrics.csv
+│       ├── gcn/
+│       │   ├── gcn_best_model.pt
+│       │   ├── gcn_history.json
+│       │   ├── gcn_test_metrics.json
+│       │   └── gcn_training_curves.png
+│       ├── gat/
+│       ├── sage/
+│       └── gin/
+├── run_gnn_baseline.py
+├── example_usage.py
+├── README.md
+└── QUICKSTART.md
 ```
 
-## 🎯 Supported GNN Architectures
+## 最新基线结果（Elliptic++ 测试集）
 
-| Architecture | Full Name | Key Feature | Paper |
-|--------------|-----------|-------------|-------|
-| **GCN** | Graph Convolutional Network | Spectral convolution | Kipf & Welling, ICLR 2017 |
-| **GAT** | Graph Attention Network | Attention-based aggregation | Veličković et al., ICLR 2018 |
-| **GraphSAGE** | SAmple and aggreGatE | Inductive learning | Hamilton et al., NeurIPS 2017 |
-| **GIN** | Graph Isomorphism Network | Powerful for graph classification | Xu et al., ICLR 2019 |
+来源：`outputs/experiment_*/experiment_summary.json`（取最新时间戳目录）
 
-## 🚀 Quick Start
+| 模型 | 参数量 | Accuracy | Precision | Recall | F1 | AUC | AP |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| GCN | 42,155 | 95.9748% | 0.9153 | 0.4192 | 0.5750 | 0.9221 | 0.6733 |
+| GAT | 42,542 | 95.7528% | 0.9391 | 0.3703 | 0.5311 | 0.9070 | 0.6598 |
+| GraphSAGE | 54,443 | 95.9268% | 0.8620 | 0.4441 | 0.5862 | 0.9071 | 0.6360 |
+| GIN | 54,251 | 96.4247% | 0.8454 | 0.5503 | 0.6667 | 0.9131 | 0.6490 |
 
-### 1. Basic Usage
+## 与 Q-GAD 对比要点（按同轮 Table 2）
 
-Train a single GNN model (e.g., GCN):
+- Q-GAD 在 `Accuracy/F1/AUC/AP` 上领先（`Accuracy=96.63%`, `F1=0.6675`, `AUC=0.9256`, `AP=0.6924`）。
+- GAT 在 `Precision` 上更高（`0.9391` vs Q-GAD `0.9321`），GIN 在 `Recall` 上更高（`0.5503` vs Q-GAD `0.5199`）。
+- 结论：Q-GAD 综合指标更优，但 Precision/Recall 仍有优化空间。
+
+## 运行入口
+
+- 单模型：
 
 ```bash
-python run_gnn_baseline.py --model gcn --epochs 10
+python gnn_baseline/run_gnn_baseline.py --model gcn --epochs 10
 ```
 
-### 2. Fast Mode (Reduced Dataset)
-
-Quick testing with reduced dataset:
+- 全模型：
 
 ```bash
-python run_gnn_baseline.py --model gcn --epochs 5 --fast
+python gnn_baseline/run_gnn_baseline.py --model all --epochs 10
 ```
 
-### 3. Train All Architectures
+## 输出规则（已简化）
 
-Compare all GNN types:
+- 每次运行自动生成：`gnn_baseline/outputs/experiment_YYYYMMDD_HHMMSS/`
+- 仅在该目录内保存结果，不再分散生成 `*_checkpoints`、`*_logs` 顶层目录
+- 每个模型目录下固定 4 个产物：`*_best_model.pt`、`*_history.json`、`*_test_metrics.json`、`*_training_curves.png`
+
+## 对比分析（可选）
 
 ```bash
-python run_gnn_baseline.py --model all --epochs 20
+python gnn_baseline/utils/comparison_analysis.py --quantum-dir experiment_summary.json --classical-dir gnn_baseline/outputs --output-dir gnn_baseline/analysis
 ```
 
-### 4. Custom Configuration
+- `--quantum-dir` 支持目录或 `experiment_summary.json` 文件。
 
-```bash
-python run_gnn_baseline.py \
-    --model gat \
-    --epochs 15 \
-    --batch-size 64 \
-    --lr 5e-4 \
-    --hidden-dim 128 \
-    --num-layers 4 \
-    --device cuda
-```
+## 说明
 
-## 📊 Command-Line Arguments
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--model` | str | `gcn` | GNN architecture: `gcn`, `gat`, `sage`, `gin`, `all` |
-| `--epochs` | int | `10` | Number of training epochs |
-| `--batch-size` | int | `32` | Batch size for training |
-| `--lr` | float | `1e-3` | Learning rate |
-| `--hidden-dim` | int | `64` | Hidden dimension for GNN layers |
-| `--num-layers` | int | `3` | Number of GNN layers |
-| `--fast` | flag | `False` | Enable fast mode (reduced dataset) |
-| `--device` | str | `auto` | Device to use (`cuda`/`cpu`) |
-| `--seed` | int | `42` | Random seed for reproducibility |
-
-## 📈 Outputs
-
-After running experiments, you'll find:
-
-```
-outputs/experiment_YYYYMMDD_HHMMSS/
-├── gcn/
-│   ├── gcn_best_model.pt              # Best model checkpoint
-│   ├── gcn_history.json               # Training history
-│   ├── gcn_test_metrics.json          # Test set metrics
-│   └── gcn_training_curves.png        # Training curves plot
-├── gat/
-│   └── ...
-├── experiment_summary.json            # Combined results summary
-└── metrics_comparison.csv             # Metrics comparison table
-```
-
-## 📊 Comparison with Quantum Model
-
-After running both quantum and classical experiments, generate comparison report:
-
-```bash
-python utils/comparison_analysis.py \
-    --quantum-dir ../outputs/elliptic_fast_test \
-    --classical-dir ./gnn_baseline/outputs \
-    --output-dir ./gnn_baseline/analysis
-```
-
-This generates:
-
-- **metrics_comparison.csv**: Numerical comparison table
-- **metrics_comparison.png**: Bar chart visualization
-- **training_dynamics.png**: Training curve comparison
-- **comparison_report.txt**: Detailed textual report
-- **comparison_report.md**: Markdown report for papers
-
-## 🔬 Experimental Protocol for Fair Comparison
-
-### Data Splitting
-
-Both quantum and classical models use:
-- **Train**: Periods 1-34 (80% of train data)
-- **Validation**: Periods 1-34 (20% of train data)
-- **Test**: Periods 35-49 (completely held-out)
-
-### Evaluation Metrics
-
-| Metric | Formula | Use Case |
-|--------|---------|----------|
-| **AUC-ROC** | $\int TPR(FPR^{-1}) dFPR$ | Overall ranking quality |
-| **F1 Score** | $2 \cdot \frac{P \cdot R}{P + R}$ | Precision-recall balance |
-| **Precision** | $TP / (TP + FP)$ | False positive rate |
-| **Recall** | $TP / (TP + FN)$ | Fraud detection rate |
-
-### Hyperparameter Matching
-
-| Parameter | Quantum (GBS) | Classical (GNN) |
-|-----------|---------------|-----------------|
-| Graph feature dim | 9 | 9 |
-| Classical feature dim | 10 | 10 |
-| Hidden dims | [64, 32] | [64, 32] |
-| Dropout | 0.1 | 0.1 |
-| Optimizer | Adam | Adam |
-| Learning rate | 1e-3 | 1e-3 |
-| Batch size | 32 | 32 |
-
-## 🧪 Understanding the Differences
-
-### Theoretical Differences
-
-| Aspect | Quantum GBS | Classical GNN |
-|--------|-------------|---------------|
-| **Feature extraction** | Quantum sampling in Hilbert space | Message passing on graph |
-| **Computational complexity** | $O(n^3 2^n)$ (Hafnian) | $O(\|E\|)$ (linear in edges) |
-| **Non-linearity source** | Quantum interference | Activation functions (ReLU) |
-| **Training** | Alternating (quantum + classical) | End-to-end backprop |
-| **Interpretability** | Physical (photons, squeezing) | Graph-theoretic (embeddings) |
-
-### Expected Performance
-
-Based on literature:
-
-- **Quantum (GBS)**: AUC ≈ 0.90-0.94
-  - Pros: Theoretical advantage for topology
-  - Cons: Computationally expensive, hard to train
-
-- **Classical (GNN)**: AUC ≈ 0.88-0.92
-  - Pros: Fast, scalable, mature tooling
-  - Cons: May miss quantum-specific features
-
-## 📝 Citation
-
-If you use this baseline in your research, please cite:
-
-```bibtex
-@misc{gnn_baseline_qgad,
-  title={Classical Baselines for Quantum Graph Anomaly Detection},
-  author={Your Name},
-  year={2025},
-  note={Comparison with GBS-based Q-GAD system}
-}
-```
-
-## 🛠️ Troubleshooting
-
-### Issue: Out of Memory
-
-```bash
-# Reduce batch size
-python run_gnn_baseline.py --model gcn --batch-size 16
-
-# Or reduce hidden dimension
-python run_gnn_baseline.py --model gcn --hidden-dim 32
-```
-
-### Issue: Poor Convergence
-
-```bash
-# Reduce learning rate
-python run_gnn_baseline.py --model gcn --lr 5e-4
-
-# Increase model capacity
-python run_gnn_baseline.py --model gcn --hidden-dim 128 --num-layers 4
-```
-
-### Issue: Data Loading Errors
-
-Ensure the Elliptic++ dataset is properly downloaded and preprocessed:
-
-```bash
-cd ../
-python -m data.financial_dataset  # This will trigger download
-```
-
-## 📧 Contact
-
-For questions or issues, please open an issue on the main repository.
-
----
-
-**Last Updated**: 2025-01-12
+- 目录结构可由 `run_gnn_baseline.py` 直接复现，便于后续复用与论文引用。

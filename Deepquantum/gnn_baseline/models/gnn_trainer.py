@@ -75,6 +75,7 @@ class GNNTrainer:
             "val_precision": [],
             "val_recall": []
         }
+        self.best_state_dict = None
 
         # Optimizer and loss
         self.optimizer = optim.Adam(
@@ -343,8 +344,12 @@ class GNNTrainer:
             if val_metrics['auc'] > best_val_auc:
                 best_val_auc = val_metrics['auc']
                 patience_counter = 0
-                self.save_checkpoint(f"best_model_epoch_{epoch}.pt")
-                print(f"✓ New best model saved (AUC: {best_val_auc:.4f})")
+                # Keep best weights in memory and persist once at the end.
+                self.best_state_dict = {
+                    k: v.detach().cpu().clone()
+                    for k, v in self.model.state_dict().items()
+                }
+                print(f"[Best] new best model tracked (AUC: {best_val_auc:.4f})")
             else:
                 patience_counter += 1
 
@@ -356,6 +361,9 @@ class GNNTrainer:
         print("Training Complete")
         print("=" * 60)
         print(f"Best Validation AUC: {best_val_auc:.4f}")
+
+        if self.best_state_dict is not None:
+            self.model.load_state_dict(self.best_state_dict)
 
     def save_checkpoint(self, filename: str):
         """Save model checkpoint."""

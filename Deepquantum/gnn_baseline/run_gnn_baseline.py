@@ -16,6 +16,8 @@ import argparse
 import json
 from datetime import datetime
 
+import numpy as np
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -24,12 +26,28 @@ from torch.utils.data import DataLoader, Subset
 
 # Import from parent project
 from data.financial_dataset import load_elliptic_dataset, collate_fn
-from utils.helpers import set_seed, get_device, print_metrics, plot_training_history
+from utils.helpers import set_seed, get_device, print_metrics
+from visualization.common_plots import plot_training_history
 
 # Import GNN models
 sys.path.insert(0, str(Path(__file__).parent / "models"))
 from gnn_models import GNNConfig, create_gnn_model
 from gnn_trainer import GNNTrainer
+
+
+def _to_json_serializable(obj):
+    """Recursively convert numpy/scalar objects into JSON-serializable types."""
+    if isinstance(obj, dict):
+        return {k: _to_json_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_to_json_serializable(v) for v in obj]
+    if isinstance(obj, tuple):
+        return [_to_json_serializable(v) for v in obj]
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, np.generic):
+        return obj.item()
+    return obj
 
 
 def parse_args():
@@ -154,13 +172,17 @@ def train_single_model(model_type, args, train_loader, val_loader, test_loader, 
     print(f"  Total: {total_params:,}")
     print(f"  Trainable: {trainable_params:,}")
 
+    # Use a single per-model directory for all artifacts to keep outputs simple.
+    model_output_dir = output_dir / model_type
+    model_output_dir.mkdir(parents=True, exist_ok=True)
+
     # Create trainer
     trainer = GNNTrainer(
         model=model,
         device=args.device,
         learning_rate=args.lr,
-        checkpoint_dir=str(output_dir / f"{model_type}_checkpoints"),
-        log_dir=str(output_dir / f"{model_type}_logs")
+        checkpoint_dir=str(model_output_dir),
+        log_dir=str(model_output_dir)
     )
 
     # Train
@@ -183,10 +205,6 @@ def train_single_model(model_type, args, train_loader, val_loader, test_loader, 
     test_metrics = trainer.evaluate(test_loader)
     print_metrics(test_metrics, f"Test Set Metrics ({model_type.upper()})")
 
-    # Save results
-    model_output_dir = output_dir / model_type
-    model_output_dir.mkdir(parents=True, exist_ok=True)
-
     # Save checkpoint
     trainer.save_checkpoint(f"{model_type}_best_model.pt")
 
@@ -201,11 +219,7 @@ def train_single_model(model_type, args, train_loader, val_loader, test_loader, 
 
     # Save test metrics
     with open(model_output_dir / f"{model_type}_test_metrics.json", 'w') as f:
-        # Convert numpy arrays for JSON serialization
-        metrics_serializable = {
-            k: (v.tolist() if isinstance(v, np.ndarray) else v)
-            for k, v in test_metrics.items()
-        }
+        metrics_serializable = _to_json_serializable(test_metrics)
         json.dump(metrics_serializable, f, indent=2)
 
     print(f"\nResults saved to {model_output_dir}")
@@ -251,18 +265,19 @@ def main():
 
     # Subsample for fast mode
     if args.fast:
-        train_size = min(1000, len(train_dataset))
-        val_size = min(200, len(train_dataset))
+        max_train = min(1000, len(train_dataset))
+        max_val = min(200, max(0, len(train_dataset) - max_train))
         test_size = min(200, len(test_dataset))
+        fast_total = max_train + max_val
 
-        print(f"\n⚡ Fast Mode - Reduced Dataset:")
-        print(f"  Train samples: {train_size}")
-        print(f"  Val samples: {val_size}")
+        print(f"\n[Fast Mode] Reduced Dataset:")
+        print(f"  Train samples: {max_train}")
+        print(f"  Val samples: {max_val}")
         print(f"  Test samples: {test_size}")
 
-        # Need to create subsets from original dataset before wrapping
-        train_subset = Subset(train_dataset, range(train_size))
-        val_subset = Subset(train_dataset, range(train_size, train_size + val_size))
+        # Fast-mode splits are clipped to avoid index overrun on small datasets.
+        train_subset = Subset(train_dataset, range(max_train))
+        val_subset = Subset(train_dataset, range(max_train, fast_total))
         test_subset = Subset(test_dataset, range(test_size))
 
         # Rename for consistency
@@ -310,7 +325,7 @@ def main():
 
     # Create output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = Path(f"./gnn_baseline/outputs/experiment_{timestamp}")
+    output_dir = Path(__file__).parent / "outputs" / f"experiment_{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Determine which models to train
@@ -357,14 +372,14 @@ def main():
     }
 
     with open(output_dir / "experiment_summary.json", 'w') as f:
-        json.dump(summary, f, indent=2)
+        json.dump(_to_json_serializable(summary), f, indent=2)
 
-    print(f"\n✓ Experiment results saved to {output_dir}")
-    print("\nNext steps:")
-    print("  1. Compare with quantum results using analysis/generate_comparison_report.py")
-    print("  2. Visualize differences using analysis/differential_analysis.py")
+    print(f"\n[Done] Experiment results saved to {output_dir}")
+    print("Key files:")
+    print(f"  - {output_dir / 'experiment_summary.json'}")
+    for model_type in model_types:
+        print(f"  - {output_dir / model_type / f'{model_type}_test_metrics.json'}")
 
 
 if __name__ == "__main__":
-    import numpy as np  # Import at top level
     main()
