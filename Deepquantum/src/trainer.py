@@ -46,7 +46,7 @@ class QGADTrainer:
     def __init__(
         self,
         model: QGADSystem,
-        device: str = "cuda",
+        device: Optional[str] = None,
         checkpoint_dir: str = "./checkpoints",
         log_dir: str = "./logs",
         use_parallel: bool = False,
@@ -63,7 +63,17 @@ class QGADTrainer:
             use_parallel: Whether to use multi-GPU training
             use_ddp: Whether to use DistributedDataParallel (vs DataParallel)
         """
-        self.device = get_device_for_rank() if "RANK" in os.environ else torch.device(device)
+        if "RANK" in os.environ:
+            self.device = get_device_for_rank()
+        else:
+            if device is None:
+                if torch.cuda.is_available():
+                    device = "cuda"
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    device = "mps"
+                else:
+                    device = "cpu"
+            self.device = torch.device(device)
 
         # Apply parallel wrapper if requested
         if use_parallel:

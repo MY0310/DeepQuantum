@@ -7,6 +7,7 @@
 ## 统一要求
 
 - 环境：`D:\Tools\Miniconda3\envs\qgad`
+- 版本基线：`python=3.10.20`、`torch=2.10.0`、`torchvision=0.26.0`、`numpy=1.26.4`
 - 量子模型：`checkpoints/elliptic_model.pt`
 - 经典共享模型：`experiments/shared_models/elliptic_xgboost_model.pkl`
 - 后端要求：真实 DeepQuantum（禁用 mock）

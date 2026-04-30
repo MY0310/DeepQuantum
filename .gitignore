@@ -4,6 +4,7 @@
 *.7z
 *.tar
 *.gz
+*.pdf
 
 # Python caches/build
 __pycache__/
@@ -52,5 +53,5 @@ Deepquantum/**/.mplconfig/
 .claude/
 .codex/
 article/
-project/
-new-gnn/
+
+AGENTS.md

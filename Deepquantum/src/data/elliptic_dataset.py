@@ -81,6 +81,7 @@ class EllipticPlusPlusDataset:
         self.processed_dir.mkdir(parents=True, exist_ok=True)
 
         self.cache_processed = cache_processed
+        self.force_download = force_download
 
         # File paths
         self.edgelist_path = self.raw_dir / "edgelist.csv"
@@ -118,7 +119,7 @@ class EllipticPlusPlusDataset:
                 self.KAGGLE_DATASET,
                 path=str(self.raw_dir),
                 unzip=True,
-                force=force_download
+                force=self.force_download
             )
             print(f"Dataset downloaded to {self.raw_dir}")
             return True
@@ -209,8 +210,14 @@ class EllipticPlusPlusDataset:
         # Handle both string "unknown" and numeric 0
         if self.classes_df['class'].dtype == object:
             labeled_mask = self.classes_df['class'] != 'unknown'
-            # Convert string labels to numeric
-            self.classes_df['class'] = self.classes_df['class'].replace({'1': 1, '2': 2, 'unknown': 0})
+            # Convert string labels to numeric without pandas downcast warning.
+            self.classes_df['class'] = (
+                self.classes_df['class']
+                .map({'1': 1, '2': 2, 'unknown': 0})
+                .pipe(pd.to_numeric, errors='coerce')
+                .fillna(0)
+                .astype(np.int64)
+            )
         else:
             labeled_mask = self.classes_df['class'] != 0
 

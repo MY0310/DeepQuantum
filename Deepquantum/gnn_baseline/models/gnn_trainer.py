@@ -38,7 +38,7 @@ class GNNTrainer:
     def __init__(
         self,
         model: nn.Module,
-        device: str = "cuda",
+        device: Optional[str] = None,
         learning_rate: float = 1e-3,
         weight_decay: float = 1e-5,
         checkpoint_dir: str = "./gnn_baseline/checkpoints",
@@ -55,6 +55,13 @@ class GNNTrainer:
             checkpoint_dir: Directory for model checkpoints
             log_dir: Directory for training logs
         """
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                device = "mps"
+            else:
+                device = "cpu"
         self.device = torch.device(device)
         self.model = model.to(self.device)
 

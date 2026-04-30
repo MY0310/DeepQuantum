@@ -23,6 +23,8 @@ Deepquantum/
 ## 统一约定
 
 - 推荐环境：`D:\Tools\Miniconda3\envs\qgad`
+- 依赖基线：`python=3.10.20`、`torch=2.10.0`、`torchvision=0.26.0`、`numpy=1.26.4`
+- GPU 基线：CUDA 可用（当前 `qgad` 环境为 `torch.version.cuda=12.8`）
 - 混合模型文件：`checkpoints/elliptic_model.pt`
 - 共享 XGBoost：`experiments/shared_models/elliptic_xgboost_model.pkl`
 - 实验总记录：`experiments/RESULTS.md`

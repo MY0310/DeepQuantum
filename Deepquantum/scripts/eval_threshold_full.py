@@ -35,12 +35,16 @@ os.environ.setdefault("MPLCONFIGDIR", str(DEFAULT_MPL_DIR))
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 from data.financial_dataset import collate_fn, load_elliptic_dataset
-from utils.helpers import find_best_f1_threshold, load_qgad_checkpoint_model
+from utils.helpers import find_best_f1_threshold, get_device, load_qgad_checkpoint_model
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser("High-resource threshold evaluation (no retraining)")
-    p.add_argument("--device", default="cuda")
+    p.add_argument(
+        "--device",
+        default=None,
+        help="Device to use (cuda/cpu/mps). Default: auto-detect",
+    )
     p.add_argument(
         "--worker-device",
         default="",
@@ -158,6 +162,7 @@ def metrics_at_threshold(y_true: np.ndarray, y_prob: np.ndarray, threshold: floa
 
 def main() -> None:
     args = parse_args()
+    args.device = get_device(args.device)
     main_mpl_dir = ROOT / ".mplconfig" / "threshold_main"
     main_mpl_dir.mkdir(parents=True, exist_ok=True)
     os.environ["MPLCONFIGDIR"] = str(main_mpl_dir)

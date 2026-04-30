@@ -17,7 +17,6 @@
 .
 ├── Deepquantum/          # 主工程（代码、实验、基线、可视化）
 ├── article/              # 论文与材料
-├── dq.ps1                # repo root 快捷转发到 app root
 └── README.md             # 本文件（仓库级索引）
 ```
 
@@ -32,14 +31,6 @@
 
 ```bash
 cd Deepquantum
-```
-
-## 根目录快捷执行（可选）
-
-在仓库根可直接用 `dq.ps1` 转发命令到主工程根，无需手动 `cd`：
-
-```powershell
-.\dq.ps1 python run_elliptic.py --help
 ```
 
 ## 清理约定

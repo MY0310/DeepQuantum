@@ -74,15 +74,30 @@ def get_device(device: Optional[str] = None) -> str:
     Returns:
         Device string
     """
-    if device is not None:
-        return device
-
-    if torch.cuda.is_available():
-        return "cuda"
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        return "mps"
-    else:
+    def _best_available() -> str:
+        if torch.cuda.is_available():
+            return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
         return "cpu"
+
+    if device is not None:
+        requested = str(device).strip().lower()
+        if requested == "cuda":
+            if torch.cuda.is_available():
+                return "cuda"
+            fallback = _best_available()
+            print(f"[Device] CUDA requested but unavailable, fallback to '{fallback}'.")
+            return fallback
+        if requested == "mps":
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return "mps"
+            fallback = _best_available()
+            print(f"[Device] MPS requested but unavailable, fallback to '{fallback}'.")
+            return fallback
+        return requested
+
+    return _best_available()
 
 
 def count_parameters(model: torch.nn.Module) -> int:
