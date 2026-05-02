@@ -87,7 +87,7 @@ def generate_model_comparison() -> Path:
     auc_vals = df["auc"].to_numpy(dtype=float)
     bubble_sizes = np.interp(auc_vals, (auc_vals.min(), auc_vals.max()), (230.0, 600.0))
 
-    fig = plt.figure(figsize=(15.4, 8.6), constrained_layout=True)
+    fig = plt.figure(figsize=(15.4, 8.6), constrained_layout=False)
     gs = fig.add_gridspec(2, 3, width_ratios=[1.45, 1.0, 1.05], height_ratios=[1.0, 1.0])
     ax_dom = fig.add_subplot(gs[:, :2])
     ax_eff = fig.add_subplot(gs[0, 2])
@@ -109,10 +109,11 @@ def generate_model_comparison() -> Path:
         x_min_candidates.extend([lo, mean_pct, q_pct])
         x_max_candidates.extend([lo, hi, mean_pct, q_pct])
 
-        ax_dom.hlines(
-            i,
-            lo,
-            hi,
+        # Use a simple line segment instead of hlines collection to avoid
+        # intermittent Win+Matplotlib native crashes in transform handling.
+        ax_dom.plot(
+            [lo, hi],
+            [i, i],
             color=COL["gnn_light"],
             linewidth=10,
             alpha=0.30,
@@ -265,6 +266,7 @@ def generate_model_comparison() -> Path:
         ha="left",
         va="bottom",
     )
+    fig.subplots_adjust(left=0.05, right=0.985, bottom=0.07, top=0.93, wspace=0.28, hspace=0.36)
 
     save_figure(fig, out / "model_comparison_story", dpi=650)
     plt.close(fig)

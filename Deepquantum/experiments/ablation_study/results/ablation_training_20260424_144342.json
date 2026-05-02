@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-04-24 14:43:42",
+  "device": "cuda",
+  "epochs": 20,
+  "lr": 0.0005,
+  "batch_size": 96,
+  "subset": 0.5,
+  "seed": 42,
+  "n_shots": 8,
+  "decision_threshold": 0.5,
+  "optimize_threshold": true,
+  "balance_sampler": false,
+  "class_weights": true,
+  "patience": 3,
+  "num_workers_effective": 0,
+  "results": {
+    "Quantum": {
+      "f1": 0.1111111111111111,
+      "auc": 0.4902817770464829,
+      "recall": 0.34615384615384615,
+      "precision": 0.0661764705882353,
+      "threshold": 0.4802020202020202,
+      "f1_t05": 0.12,
+      "recall_t05": 0.11538461538461539,
+      "precision_t05": 0.125,
+      "best_val_f1": 0.22485207100591717,
+      "best_val_auc": 0.5409419581786202,
+      "best_epoch": 3
+    }
+  }
+}

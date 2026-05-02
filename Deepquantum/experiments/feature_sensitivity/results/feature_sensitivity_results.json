@@ -1,0 +1,76 @@
+{
+  "experiment": "feature_sensitivity_standardized",
+  "parameters": {
+    "seed": 42,
+    "n_shots": 15,
+    "decision_threshold": 0.26,
+    "max_samples": 128,
+    "batch_size": 16,
+    "epsilon": [
+      0.01,
+      0.05,
+      0.1
+    ],
+    "device": "cuda"
+  },
+  "results": {
+    "clean": {
+      "f1": 0.6666666666666666,
+      "auc": 0.9345703125
+    },
+    "Quantum_Features_epsilon_0.01": {
+      "f1": 0.6666666666666666,
+      "auc": 0.933837890625,
+      "f1_drop_percent": 0.0,
+      "auc_drop_percent": 0.07836990595611285
+    },
+    "Quantum_Features_epsilon_0.05": {
+      "f1": 0.6666666666666666,
+      "auc": 0.9345703125,
+      "f1_drop_percent": 0.0,
+      "auc_drop_percent": 0.0
+    },
+    "Quantum_Features_epsilon_0.1": {
+      "f1": 0.6666666666666666,
+      "auc": 0.93408203125,
+      "f1_drop_percent": 0.0,
+      "auc_drop_percent": 0.052246603970741906
+    },
+    "Classical_Features_epsilon_0.01": {
+      "f1": 0.6666666666666666,
+      "auc": 0.9345703125,
+      "f1_drop_percent": 0.0,
+      "auc_drop_percent": 0.0
+    },
+    "Classical_Features_epsilon_0.05": {
+      "f1": 0.6804123711340206,
+      "auc": 0.932861328125,
+      "f1_drop_percent": -2.0618556701031023,
+      "auc_drop_percent": 0.18286311389759666
+    },
+    "Classical_Features_epsilon_0.1": {
+      "f1": 0.6382978723404256,
+      "auc": 0.930908203125,
+      "f1_drop_percent": 4.2553191489361595,
+      "auc_drop_percent": 0.3918495297805642
+    },
+    "Both_Features_epsilon_0.01": {
+      "f1": 0.6666666666666666,
+      "auc": 0.936279296875,
+      "f1_drop_percent": 0.0,
+      "auc_drop_percent": -0.18286311389759666
+    },
+    "Both_Features_epsilon_0.05": {
+      "f1": 0.6666666666666666,
+      "auc": 0.92724609375,
+      "f1_drop_percent": 0.0,
+      "auc_drop_percent": 0.7836990595611284
+    },
+    "Both_Features_epsilon_0.1": {
+      "f1": 0.6804123711340206,
+      "auc": 0.9375,
+      "f1_drop_percent": -2.0618556701031023,
+      "auc_drop_percent": -0.3134796238244514
+    }
+  }
+}

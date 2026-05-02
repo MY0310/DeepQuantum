@@ -1,4 +1,4 @@
-# 实验结果记录（2026-04-24）
+# 实验结果记录（2026-05-02）
 
 运行环境：`D:\Tools\Miniconda3\envs\qgad`  
 量子模型：`checkpoints/elliptic_model.pt`  
@@ -94,12 +94,12 @@
 ## 6) 拓扑不变量
 
 - 脚本：`experiments/topological_invariance/run_with_qgad_model.py`
-- 参数：`n_pairs=20, n_nodes=20, similarity=cosine, n_shots=15, seed=42, device=cuda`
+- 参数：`n_pairs=20, n_nodes=20, similarity=cosine, feature_normalization=zscore, canonicalize_graph=false, n_shots=100, seed=42, device=cuda`
 - 结果文件：`experiments/topological_invariance/results/topological_invariance_qgad_results.json`
 - 关键指标：
-  - 同构平均相似度：`0.9978`
-  - 非同构平均相似度：`0.9918`
-  - 分离度：`+0.0060`（`passed=true`）
+  - 同构平均相似度：`0.6295`
+  - 非同构平均相似度：`0.0706`
+  - 分离度：`+0.5589`（`passed=true`）
 - 判定：正向
 
 ## 7) 消融实验

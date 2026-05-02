@@ -1,6 +1,6 @@
 # Conda environment configuration for Q-GAD system
 # Usage: conda env create -f environment.yml
-# Update: conda env update -f environment.yml
+# Update: conda env update -f environment.yml --prune
 
 name: qgad
 channels:
@@ -9,7 +9,7 @@ channels:
   - defaults
 
 dependencies:
-  # Python version
+  # Python
   - python=3.10.20
 
   # Core scientific computing
@@ -17,7 +17,7 @@ dependencies:
   - scipy=1.15.2
   - pandas=2.3.3
 
-  # PyTorch (qgad baseline: GPU build, CUDA 12.x)
+  # PyTorch (CUDA 12.x build)
   - pytorch=2.10.0
   - torchvision=0.26.0
 
@@ -44,11 +44,11 @@ dependencies:
   - ipykernel=7.2.0
   - pip>=23.0
 
-  # Pip packages (not available on conda)
+  # Pip-only packages
   - pip:
-      # DeepQuantum (install from source or PyPI if available)
-      - git+https://github.com/turingq/deepquantum.git
+      # Quantum computing framework (GBS kernel)
+      - deepquantum==4.5.0
 
-      # Additional utilities
-      - wandb==0.25.1  # For experiment tracking (optional)
-      - plotly==6.7.0  # For interactive plots
+      # Experiment tracking & visualization
+      - wandb==0.25.1
+      - plotly==6.7.0

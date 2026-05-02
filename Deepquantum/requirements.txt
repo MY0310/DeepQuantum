@@ -1,40 +1,26 @@
-# Q-GAD pinned baseline (Miniconda env: D:\Tools\Miniconda3\envs\qgad)
-# NOTE: CUDA-enabled torch is provisioned by conda in this project.
+# Q-GAD pip requirements (Conda env: qgad, Python 3.10.20)
+# CUDA-enabled torch is provisioned by conda; install conda packages first:
+#   conda env create -f environment.yml
+# Then: pip install -r requirements.txt
 
-# Core dependencies
-torch==2.10.0
-torchvision==0.26.0
-numpy==1.26.4
-pandas==2.3.3
-scipy==1.15.2
-scikit-learn==1.7.2
+# Core dependencies (conda-managed, listed for reference)
+# torch==2.10.0
+# torchvision==0.26.0
+# numpy==1.26.4
+# pandas==2.3.3
+# scipy==1.15.2
+# scikit-learn==1.7.2
+# networkx==3.4.2
+# xgboost==3.2.0
+# lightgbm==4.6.0
+# matplotlib==3.8.4
+# seaborn==0.13.2
+# tqdm==4.67.3
+# joblib==1.5.3
+# pyyaml==6.0.3
+# requests==2.33.1
 
-# Graph processing
-networkx==3.4.2
-
-# Quantum computing (DeepQuantum - to be installed from source)
-# deepquantum  # Install from: https://github.com/turingq/deepquantum
-
-# Machine learning
-xgboost==3.2.0
-lightgbm==4.6.0
-
-# Visualization
-matplotlib==3.8.4
-seaborn==0.13.2
-
-# Utilities
-tqdm==4.67.3
-joblib==1.5.3
-pyyaml==6.0.3
-requests==2.33.1
-
-# Development
-jupyter
-ipykernel==7.2.0
-plotly==6.7.0
+# Pip-only packages
+deepquantum==4.5.0
 wandb==0.25.1
-
-# Optional: For Elliptic++ dataset
-# wget
-# requests
+plotly==6.7.0

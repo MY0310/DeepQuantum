@@ -302,7 +302,11 @@ def plot_story_generalization_mechanism(out: Path) -> None:
     ax_b.set_xticks([1, 2])
     ax_b.set_xticklabels(["Isomorphic", "Non-isomorphic"])
     ax_b.set_ylabel("Cosine similarity")
-    ax_b.set_ylim(0.93, 1.0025)
+    y_min = float(min(np.min(iso), np.min(non)))
+    y_max = float(max(np.max(iso), np.max(non)))
+    y_span = max(y_max - y_min, 1e-6)
+    y_pad = max(0.05, 0.10 * y_span)
+    ax_b.set_ylim(max(-1.0, y_min - y_pad), min(1.0, y_max + y_pad))
     ax_b.set_title("B. Topological Similarity Separation", pad=10)
     ax_b.text(0.03, 0.08, f"Separation score: {sep:.4f}", transform=ax_b.transAxes, fontsize=9.8, color=THEME["primary"])
     _polish_axis(ax_b)
@@ -477,7 +481,7 @@ def plot_story_evidence_constellation(out: Path) -> None:
     ]
 
     for p in points:
-        p["integrated"] = 0.58 * float(p["x"]) + 0.42 * float(p["y"])
+        p["integrated"] = 0.50 * float(p["x"]) + 0.50 * float(p["y"])
 
     fig = plt.figure(figsize=(15.8, 8.8), constrained_layout=False, facecolor="white")
     gs = fig.add_gridspec(1, 2, width_ratios=[1.48, 1.0], wspace=0.12)
@@ -606,7 +610,7 @@ def plot_story_evidence_constellation(out: Path) -> None:
     fig.text(
         0.5,
         0.919,
-        "Integrated score = 0.58 x Impact + 0.42 x Stability; "
+        "Integrated score = 0.50 x Impact + 0.50 x Stability; "
         "scales: Δquantum/5, separation x120, gain x3.5, "
         "sensitivity impact = 0.6*F1ret + 0.4*(0.5 + 5*(Q-C)).",
         ha="center",

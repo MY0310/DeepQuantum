@@ -1,4 +1,6 @@
-# GNN Baseline（已按 2026-04-23 新结果整理）
+# GNN Baseline
+
+最后更新：2026-05-03
 
 本目录用于维护 Q-GAD 的经典 GNN 对照实验（GCN / GAT / GraphSAGE / GIN）。
 

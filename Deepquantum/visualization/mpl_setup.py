@@ -5,8 +5,54 @@ Matplotlib setup helpers for stable plotting on Windows/headless environments.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Iterable
+
+
+def _ensure_windows_conda_dll_paths() -> None:
+    """
+    Ensure conda DLL directories are discoverable on Windows.
+
+    This prevents low-level crashes when scripts are launched via
+    `...\\envs\\qgad\\python.exe` without an activated conda shell.
+    """
+    if os.name != "nt":
+        return
+
+    prefix = os.environ.get("CONDA_PREFIX")
+    if not prefix:
+        exe_parent = Path(sys.executable).resolve().parent
+        if (exe_parent / "conda-meta").exists():
+            prefix = str(exe_parent)
+    if not prefix:
+        return
+
+    dll_dirs = [
+        Path(prefix),
+        Path(prefix) / "Library" / "mingw-w64" / "bin",
+        Path(prefix) / "Library" / "usr" / "bin",
+        Path(prefix) / "Library" / "bin",
+        Path(prefix) / "Scripts",
+    ]
+    existing = [str(p) for p in dll_dirs if p.exists()]
+    if not existing:
+        return
+
+    current_path = os.environ.get("PATH", "")
+    path_parts = [p for p in current_path.split(";") if p]
+    for p in reversed(existing):
+        if p not in path_parts:
+            path_parts.insert(0, p)
+    os.environ["PATH"] = ";".join(path_parts)
+
+    add_dll = getattr(os, "add_dll_directory", None)
+    if add_dll is not None:
+        for p in existing:
+            try:
+                add_dll(p)
+            except OSError:
+                pass
 
 
 def setup_matplotlib(project_root: Path, backend: str = "Agg"):
@@ -15,6 +61,7 @@ def setup_matplotlib(project_root: Path, backend: str = "Agg"):
     """
     mpl_dir = project_root / ".mplconfig"
     mpl_dir.mkdir(parents=True, exist_ok=True)
+    _ensure_windows_conda_dll_paths()
     os.environ.setdefault("MPLCONFIGDIR", str(mpl_dir))
     os.environ.setdefault("MPLBACKEND", backend)
 

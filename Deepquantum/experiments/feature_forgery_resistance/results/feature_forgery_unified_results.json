@@ -1,0 +1,44 @@
+{
+  "experiment": "feature_forgery_resistance_unified_fast",
+  "parameters": {
+    "n_samples": 64,
+    "batch_size": 16,
+    "optimization_steps": 3,
+    "forgery_budget": 0.1,
+    "n_shots": 15,
+    "decision_threshold": 0.26,
+    "seed": 42,
+    "device": "cuda"
+  },
+  "qgad": {
+    "baseline_recall": 0.921875,
+    "forged_recall": 0.796875,
+    "recall_drop": 0.125
+  },
+  "xgboost": {
+    "baseline_recall": 0.984375,
+    "forged_recall": 0.0,
+    "recall_drop": 0.984375
+  },
+  "advantage": {
+    "drop_gap_xgb_minus_qgad": 0.859375,
+    "qgad_more_robust": true
+  },
+  "backend": {
+    "deepquantum_real": true,
+    "checkpoint": "elliptic_model.pt"
+  },
+  "artifacts": {
+    "xgboost_model_path": "D:\\vscode\\projects\\Deepquantum\\Deepquantum\\experiments\\shared_models\\elliptic_xgboost_model.pkl"
+  },
+  "xgboost_training": {
+    "cache_sanity_failed": false,
+    "cache_sanity_metrics": {
+      "test_samples": 16670,
+      "test_recall_fraud": 0.7091412742382271,
+      "test_f1": 0.7289985761746559,
+      "test_auc": 0.9188438692873366,
+      "test_ap": 0.7769591880911425
+    }
+  }
+}

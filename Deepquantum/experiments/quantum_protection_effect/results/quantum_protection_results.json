@@ -1,0 +1,83 @@
+{
+  "experiment": "quantum_protection_effect_standardized",
+  "parameters": {
+    "seed": 42,
+    "n_shots": 12,
+    "decision_threshold": 0.26,
+    "optimize_threshold": true,
+    "max_samples": 256,
+    "batch_size": 16,
+    "epsilon": [
+      0.01,
+      0.05,
+      0.1
+    ],
+    "device": "cuda"
+  },
+  "results": {
+    "Q-GAD (Full)": {
+      "threshold_mode": "clean_optimized",
+      "threshold": 0.014949494949494949,
+      "fixed_threshold": 0.26,
+      "clean_f1": 0.8211382113821138,
+      "clean_auc": 0.9302978515625,
+      "clean_f1_fixed_threshold": 0.6871794871794872,
+      "epsilon_0.01": {
+        "f1": 0.7894736842105263,
+        "auc": 0.89031982421875,
+        "drop_percent": 3.8561750911933315,
+        "retained_percent": 96.14382490880666,
+        "auc_drop_percent": 4.297336307571185,
+        "auc_retained_percent": 95.70266369242881
+      },
+      "epsilon_0.05": {
+        "f1": 0.7251908396946565,
+        "auc": 0.785400390625,
+        "drop_percent": 11.68467991837352,
+        "retained_percent": 88.31532008162648,
+        "auc_drop_percent": 15.575383807899227,
+        "auc_retained_percent": 84.42461619210077
+      },
+      "epsilon_0.1": {
+        "f1": 0.48627450980392156,
+        "auc": 0.561279296875,
+        "drop_percent": 40.7804309842749,
+        "retained_percent": 59.2195690157251,
+        "auc_drop_percent": 39.6667104054586,
+        "auc_retained_percent": 60.3332895945414
+      }
+    },
+    "Q-GAD (ZeroQuantum)": {
+      "threshold_mode": "clean_optimized",
+      "threshold": 0.0198989898989899,
+      "fixed_threshold": 0.26,
+      "clean_f1": 0.8264462809917356,
+      "clean_auc": 0.9317626953125,
+      "clean_f1_fixed_threshold": 0.6938775510204082,
+      "epsilon_0.01": {
+        "f1": 0.7786259541984732,
+        "auc": 0.89202880859375,
+        "drop_percent": 5.786259541984739,
+        "retained_percent": 94.21374045801527,
+        "auc_drop_percent": 4.264378357133499,
+        "auc_retained_percent": 95.7356216428665
+      },
+      "epsilon_0.05": {
+        "f1": 0.708171206225681,
+        "auc": 0.789306640625,
+        "drop_percent": 14.311284046692604,
+        "retained_percent": 85.6887159533074,
+        "auc_drop_percent": 15.288877243547752,
+        "auc_retained_percent": 84.71112275645226
+      },
+      "epsilon_0.1": {
+        "f1": 0.4583333333333333,
+        "auc": 0.5662841796875,
+        "drop_percent": 44.54166666666667,
+        "retained_percent": 55.45833333333333,
+        "auc_drop_percent": 39.224420280361585,
+        "auc_retained_percent": 60.775579719638415
+      }
+    }
+  }
+}

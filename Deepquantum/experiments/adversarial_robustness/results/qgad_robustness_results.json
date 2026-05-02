@@ -1,0 +1,45 @@
+{
+  "experiment": "adversarial_robustness_standardized",
+  "parameters": {
+    "seed": 42,
+    "n_shots": 15,
+    "decision_threshold": 0.26,
+    "max_samples": 128,
+    "batch_size": 16,
+    "epsilon": [
+      0.01,
+      0.05,
+      0.1
+    ],
+    "device": "cuda",
+    "materialize_quantum": true,
+    "clip_to_train_range": true,
+    "cache_materialized": true,
+    "attack_feature_ratio": 0.1
+  },
+  "results": {
+    "qgad": {
+      "clean_accuracy": 0.75,
+      "clean_f1": 0.6666666666666666,
+      "clean_auc": 0.9345703125,
+      "epsilon_0.01": {
+        "accuracy": 0.8046875,
+        "f1": 0.7572815533980582,
+        "auc": 0.930419921875,
+        "f1_drop_percent": -13.592233009708742
+      },
+      "epsilon_0.05": {
+        "accuracy": 0.7421875,
+        "f1": 0.6526315789473685,
+        "auc": 0.886962890625,
+        "f1_drop_percent": 2.1052631578947265
+      },
+      "epsilon_0.1": {
+        "accuracy": 0.6875,
+        "f1": 0.5652173913043478,
+        "auc": 0.82666015625,
+        "f1_drop_percent": 15.217391304347828
+      }
+    }
+  }
+}

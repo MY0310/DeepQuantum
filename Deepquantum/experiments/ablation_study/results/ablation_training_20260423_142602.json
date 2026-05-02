@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-04-23 14:26:02",
+  "device": "cuda",
+  "epochs": 8,
+  "lr": 0.001,
+  "batch_size": 96,
+  "subset": 0.5,
+  "seed": 42,
+  "n_shots": 8,
+  "decision_threshold": 0.5,
+  "optimize_threshold": true,
+  "balance_sampler": true,
+  "class_weights": false,
+  "patience": 3,
+  "num_workers_effective": 0,
+  "results": {
+    "Classical": {
+      "f1": 0.43243243243243246,
+      "auc": 0.8105717811600165,
+      "recall": 0.3076923076923077,
+      "precision": 0.7272727272727273,
+      "threshold": 0.8563636363636363,
+      "f1_t05": 0.6274509803921569,
+      "recall_t05": 0.6153846153846154,
+      "precision_t05": 0.64,
+      "best_val_f1": 0.8311688311688312,
+      "best_val_auc": 0.9482769852126897,
+      "best_epoch": 8
+    },
+    "Quantum": {
+      "f1": 0.0960960960960961,
+      "auc": 0.4434903331962155,
+      "recall": 0.6153846153846154,
+      "precision": 0.05211726384364821,
+      "threshold": 0.5841414141414141,
+      "f1_t05": 0.12206572769953052,
+      "recall_t05": 1.0,
+      "precision_t05": 0.065,
+      "best_val_f1": 0.23121387283236994,
+      "best_val_auc": 0.5611035111719106,
+      "best_epoch": 2
+    },
+    "Hybrid": {
+      "f1": 0.5405405405405406,
+      "auc": 0.7779720279720279,
+      "recall": 0.38461538461538464,
+      "precision": 0.9090909090909091,
+      "threshold": 0.9058585858585858,
+      "f1_t05": 0.53125,
+      "recall_t05": 0.6538461538461539,
+      "precision_t05": 0.4473684210526316,
+      "best_val_f1": 0.810126582278481,
+      "best_val_auc": 0.9441078757084228,
+      "best_epoch": 8
+    }
+  }
+}

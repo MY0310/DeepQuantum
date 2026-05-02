@@ -8,11 +8,58 @@ Includes:
 """
 
 import os
+import sys
+import random
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+
+
+def _patch_windows_conda_dll_path() -> None:
+    """
+    Ensure conda DLL lookup paths are present when Python is launched
+    directly via `...\\envs\\qgad\\python.exe` without shell activation.
+    """
+    if os.name != "nt":
+        return
+
+    prefix = os.environ.get("CONDA_PREFIX")
+    if not prefix:
+        exe_parent = Path(sys.executable).resolve().parent
+        if (exe_parent / "conda-meta").exists():
+            prefix = str(exe_parent)
+    if not prefix:
+        return
+
+    dll_dirs = [
+        Path(prefix),
+        Path(prefix) / "Library" / "mingw-w64" / "bin",
+        Path(prefix) / "Library" / "usr" / "bin",
+        Path(prefix) / "Library" / "bin",
+        Path(prefix) / "Scripts",
+    ]
+    existing = [str(p) for p in dll_dirs if p.exists()]
+    if not existing:
+        return
+
+    parts = [p for p in os.environ.get("PATH", "").split(";") if p]
+    for p in reversed(existing):
+        if p not in parts:
+            parts.insert(0, p)
+    os.environ["PATH"] = ";".join(parts)
+
+    add_dll = getattr(os, "add_dll_directory", None)
+    if add_dll is not None:
+        for p in existing:
+            try:
+                add_dll(p)
+            except OSError:
+                pass
+
+
+_patch_windows_conda_dll_path()
+
 import torch
 import numpy as np
-import random
-from typing import Dict, Optional, Tuple
-from pathlib import Path
 
 
 def _configure_matplotlib_runtime(per_process: bool = True) -> Path:

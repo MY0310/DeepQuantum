@@ -1,0 +1,98 @@
+{
+  "experiment": "temporal_generalization_standardized",
+  "parameters": {
+    "seed": 42,
+    "n_shots": 12,
+    "decision_threshold": 0.26,
+    "optimize_threshold": true,
+    "batch_size": 16,
+    "max_samples": 256,
+    "quick": false,
+    "configs": [
+      "gap_8weeks",
+      "gap_15weeks",
+      "gap_19weeks"
+    ],
+    "device": "cuda"
+  },
+  "results": [
+    {
+      "config_name": "gap_8weeks",
+      "description": "中等间隔（8周）",
+      "train_periods": [
+        1,
+        40
+      ],
+      "test_periods": [
+        41,
+        49
+      ],
+      "gap_weeks": 8,
+      "train_size": 256,
+      "test_size": 256,
+      "threshold_mode": "train_optimized",
+      "threshold": 0.039696969696969696,
+      "fixed_threshold": 0.26,
+      "train_f1": 0.9731800766283525,
+      "train_auc": 0.99176025390625,
+      "test_f1": 0.6732673267326733,
+      "test_auc": 0.8377685546875,
+      "test_f1_fixed_threshold": 0.5142857142857142,
+      "retention_rate": 69.18219380993219,
+      "f1_degradation": 0.2999127498956792,
+      "auc_degradation": 0.15399169921875
+    },
+    {
+      "config_name": "gap_15weeks",
+      "description": "标准分割（15周）",
+      "train_periods": [
+        1,
+        34
+      ],
+      "test_periods": [
+        35,
+        49
+      ],
+      "gap_weeks": 15,
+      "train_size": 256,
+      "test_size": 256,
+      "threshold_mode": "train_optimized",
+      "threshold": 0.09909090909090908,
+      "fixed_threshold": 0.26,
+      "train_f1": 0.9641434262948207,
+      "train_auc": 0.994140625,
+      "test_f1": 0.7414634146341463,
+      "test_auc": 0.89422607421875,
+      "test_f1_fixed_threshold": 0.6666666666666666,
+      "retention_rate": 76.90385003023583,
+      "f1_degradation": 0.22268001166067442,
+      "auc_degradation": 0.09991455078125
+    },
+    {
+      "config_name": "gap_19weeks",
+      "description": "最大间隔（19周）",
+      "train_periods": [
+        1,
+        30
+      ],
+      "test_periods": [
+        31,
+        49
+      ],
+      "gap_weeks": 19,
+      "train_size": 256,
+      "test_size": 256,
+      "threshold_mode": "train_optimized",
+      "threshold": 0.049595959595959596,
+      "fixed_threshold": 0.26,
+      "train_f1": 0.9689922480620154,
+      "train_auc": 0.9879150390625,
+      "test_f1": 0.8717948717948718,
+      "test_auc": 0.933837890625,
+      "test_f1_fixed_threshold": 0.7887323943661971,
+      "retention_rate": 89.96923076923078,
+      "f1_degradation": 0.09719737626714364,
+      "auc_degradation": 0.0540771484375
+    }
+  ]
+}

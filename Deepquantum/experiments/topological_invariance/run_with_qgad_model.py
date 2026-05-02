@@ -6,8 +6,49 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import sys
 from pathlib import Path
+
+
+def _patch_windows_conda_dll_path() -> None:
+    if os.name != "nt":
+        return
+    prefix = os.environ.get("CONDA_PREFIX")
+    if not prefix:
+        exe_parent = Path(sys.executable).resolve().parent
+        if (exe_parent / "conda-meta").exists():
+            prefix = str(exe_parent)
+    if not prefix:
+        return
+
+    dll_dirs = [
+        Path(prefix),
+        Path(prefix) / "Library" / "mingw-w64" / "bin",
+        Path(prefix) / "Library" / "usr" / "bin",
+        Path(prefix) / "Library" / "bin",
+        Path(prefix) / "Scripts",
+    ]
+    existing = [str(p) for p in dll_dirs if p.exists()]
+    if not existing:
+        return
+
+    path_parts = [p for p in os.environ.get("PATH", "").split(";") if p]
+    for p in reversed(existing):
+        if p not in path_parts:
+            path_parts.insert(0, p)
+    os.environ["PATH"] = ";".join(path_parts)
+
+    add_dll = getattr(os, "add_dll_directory", None)
+    if add_dll is not None:
+        for p in existing:
+            try:
+                add_dll(p)
+            except OSError:
+                pass
+
+
+_patch_windows_conda_dll_path()
 
 import networkx as nx
 import numpy as np
@@ -26,10 +67,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-pairs", type=int, default=20)
     parser.add_argument("--n-nodes", type=int, default=20)
     parser.add_argument("--similarity-method", type=str, default="cosine", choices=["cosine", "euclidean", "correlation"])
+    parser.add_argument(
+        "--feature-normalization",
+        type=str,
+        default="zscore",
+        choices=["none", "zscore", "robust"],
+        help="Normalize quantum features before pairwise similarity.",
+    )
     parser.add_argument("--n-shots", type=int, default=15)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default=None)
     parser.add_argument("--show-quantum-logs", action="store_true")
+    parser.add_argument(
+        "--canonicalize-graph",
+        action="store_true",
+        default=False,
+        help="Apply deterministic canonical-like node ordering before encoding.",
+    )
+    parser.add_argument(
+        "--no-canonicalize-graph",
+        dest="canonicalize_graph",
+        action="store_false",
+        help="Disable canonical-like node ordering before encoding.",
+    )
     parser.add_argument("--output-dir", default="experiments/topological_invariance/results")
     return parser.parse_args()
 
@@ -84,6 +144,32 @@ def encode_graph_to_params(G, n_modes=20, max_squeezing=2.0):
     return squeezing.astype(np.float32), unitary.astype(np.float32)
 
 
+def _wl_refinement_scores(G, rounds=4):
+    labels = {node: str(G.degree(node)) for node in G.nodes()}
+    for _ in range(rounds):
+        new_labels = {}
+        for node in G.nodes():
+            neigh = sorted(labels[nbr] for nbr in G.neighbors(node))
+            signature = labels[node] + "|" + ",".join(neigh)
+            new_labels[node] = str(hash(signature))
+        labels = new_labels
+    return labels
+
+
+def canonicalize_graph_for_encoding(G):
+    G = G.copy()
+    scores = _wl_refinement_scores(G, rounds=4)
+    degree = dict(G.degree())
+    clustering = nx.clustering(G)
+    # Deterministic ordering with structural keys first, raw node id as final tiebreaker.
+    ordered_nodes = sorted(
+        G.nodes(),
+        key=lambda n: (scores[n], degree[n], clustering[n], str(n)),
+    )
+    mapping = {node: idx for idx, node in enumerate(ordered_nodes)}
+    return nx.relabel_nodes(G, mapping)
+
+
 def generate_graph_pair(n_nodes=20, seed=42, isomorphic=True):
     rng = np.random.default_rng(seed)
     if isomorphic:
@@ -100,10 +186,17 @@ def generate_graph_pair(n_nodes=20, seed=42, isomorphic=True):
 
 
 @torch.no_grad()
-def extract_quantum_features(graph, quantum_extractor, device, quiet_quantum_logs=True):
+def extract_quantum_features(
+    graph,
+    quantum_extractor,
+    device,
+    quiet_quantum_logs=True,
+    canonicalize_graph=False,
+):
     gbs_kernel = quantum_extractor.gbs_kernel
+    graph_for_encoding = canonicalize_graph_for_encoding(graph) if canonicalize_graph else graph
     squeezing, unitary = encode_graph_to_params(
-        graph,
+        graph_for_encoding,
         n_modes=gbs_kernel.n_modes,
         max_squeezing=gbs_kernel.config.max_squeezing,
     )
@@ -133,6 +226,27 @@ def compute_similarity(features1, features2, method="cosine") -> float:
     raise ValueError(f"Unknown similarity method: {method}")
 
 
+def normalize_features(feature_list, method="zscore"):
+    if method == "none":
+        return [np.asarray(f, dtype=np.float32) for f in feature_list]
+
+    stacked = np.stack([np.asarray(f, dtype=np.float32) for f in feature_list], axis=0)
+    eps = 1e-8
+
+    if method == "zscore":
+        center = np.mean(stacked, axis=0, keepdims=True)
+        scale = np.std(stacked, axis=0, keepdims=True)
+    elif method == "robust":
+        center = np.median(stacked, axis=0, keepdims=True)
+        scale = np.median(np.abs(stacked - center), axis=0, keepdims=True) * 1.4826
+    else:
+        raise ValueError(f"Unknown feature normalization: {method}")
+
+    scale = np.where(scale < eps, 1.0, scale)
+    normalized = (stacked - center) / scale
+    return [normalized[i] for i in range(normalized.shape[0])]
+
+
 def run(args: argparse.Namespace):
     set_seed(args.seed)
     device = get_device(args.device)
@@ -143,25 +257,67 @@ def run(args: argparse.Namespace):
     print("=" * 80)
     print(
         f"[Config] device={device}, n_pairs={args.n_pairs}, n_nodes={args.n_nodes}, "
-        f"similarity={args.similarity_method}, n_shots={args.n_shots}"
+        f"similarity={args.similarity_method}, normalize={args.feature_normalization}, "
+        f"canonicalize={args.canonicalize_graph}, n_shots={args.n_shots}"
     )
 
     quantum_extractor = load_qgad_quantum_extractor(device=device, n_shots=args.n_shots)
 
-    iso_scores = []
-    non_iso_scores = []
+    iso_pair_features = []
+    non_iso_pair_features = []
 
     for i in range(args.n_pairs):
         g1, g2 = generate_graph_pair(n_nodes=args.n_nodes, seed=args.seed + i, isomorphic=True)
-        f1 = extract_quantum_features(g1, quantum_extractor, device, quiet_quantum_logs=quiet_quantum_logs)
-        f2 = extract_quantum_features(g2, quantum_extractor, device, quiet_quantum_logs=quiet_quantum_logs)
-        iso_scores.append(compute_similarity(f1, f2, method=args.similarity_method))
+        f1 = extract_quantum_features(
+            g1,
+            quantum_extractor,
+            device,
+            quiet_quantum_logs=quiet_quantum_logs,
+            canonicalize_graph=args.canonicalize_graph,
+        )
+        f2 = extract_quantum_features(
+            g2,
+            quantum_extractor,
+            device,
+            quiet_quantum_logs=quiet_quantum_logs,
+            canonicalize_graph=args.canonicalize_graph,
+        )
+        iso_pair_features.append((f1, f2))
 
     for i in range(args.n_pairs):
         g1, g2 = generate_graph_pair(n_nodes=args.n_nodes, seed=args.seed + 1000 + i, isomorphic=False)
-        f1 = extract_quantum_features(g1, quantum_extractor, device, quiet_quantum_logs=quiet_quantum_logs)
-        f2 = extract_quantum_features(g2, quantum_extractor, device, quiet_quantum_logs=quiet_quantum_logs)
-        non_iso_scores.append(compute_similarity(f1, f2, method=args.similarity_method))
+        f1 = extract_quantum_features(
+            g1,
+            quantum_extractor,
+            device,
+            quiet_quantum_logs=quiet_quantum_logs,
+            canonicalize_graph=args.canonicalize_graph,
+        )
+        f2 = extract_quantum_features(
+            g2,
+            quantum_extractor,
+            device,
+            quiet_quantum_logs=quiet_quantum_logs,
+            canonicalize_graph=args.canonicalize_graph,
+        )
+        non_iso_pair_features.append((f1, f2))
+
+    all_features = [f for pair in (iso_pair_features + non_iso_pair_features) for f in pair]
+    normalized_features = normalize_features(all_features, method=args.feature_normalization)
+
+    idx = 0
+    norm_iso_pairs = []
+    for _ in iso_pair_features:
+        norm_iso_pairs.append((normalized_features[idx], normalized_features[idx + 1]))
+        idx += 2
+
+    norm_non_iso_pairs = []
+    for _ in non_iso_pair_features:
+        norm_non_iso_pairs.append((normalized_features[idx], normalized_features[idx + 1]))
+        idx += 2
+
+    iso_scores = [compute_similarity(f1, f2, method=args.similarity_method) for f1, f2 in norm_iso_pairs]
+    non_iso_scores = [compute_similarity(f1, f2, method=args.similarity_method) for f1, f2 in norm_non_iso_pairs]
 
     iso_mean, iso_std = float(np.mean(iso_scores)), float(np.std(iso_scores))
     non_iso_mean, non_iso_std = float(np.mean(non_iso_scores)), float(np.std(non_iso_scores))
@@ -180,6 +336,8 @@ def run(args: argparse.Namespace):
             "n_pairs": int(args.n_pairs),
             "n_nodes": int(args.n_nodes),
             "similarity_method": args.similarity_method,
+            "feature_normalization": args.feature_normalization,
+            "canonicalize_graph": bool(args.canonicalize_graph),
             "n_shots": int(args.n_shots),
             "device": str(device),
             "has_deepquantum": True,
