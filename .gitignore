@@ -47,7 +47,9 @@ Deepquantum/.mplconfig/
 .claude/
 .codex/
 article/
-ui/
 AGENTS.md
+
+# Temp logs
+ui/.tmp_streamlit_*.log
 .tmp
 
