@@ -9,7 +9,10 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from visualization.mpl_setup import apply_default_style, get_plot_modules
+if __package__ in (None, ""):
+    from visualization.mpl_setup import apply_default_style, get_plot_modules
+else:
+    from .mpl_setup import apply_default_style, get_plot_modules
 
 ROOT = Path(__file__).resolve().parents[1]
 plt = get_plot_modules(ROOT)

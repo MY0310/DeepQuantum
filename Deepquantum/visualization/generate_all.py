@@ -9,9 +9,11 @@ import sys
 
 if __package__ in (None, ""):
     sys.path.append(str(Path(__file__).resolve().parents[1]))
-
-from visualization.experiments_dashboard import main as experiments_main
-from visualization.model_comparison import main as model_comparison_main
+    from visualization.experiments_dashboard import main as experiments_main
+    from visualization.model_comparison import main as model_comparison_main
+else:
+    from .experiments_dashboard import main as experiments_main
+    from .model_comparison import main as model_comparison_main
 
 
 def main() -> None:

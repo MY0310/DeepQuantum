@@ -57,6 +57,9 @@ python experiments/adversarial_robustness/run_adversarial_real.py --max-samples 
 
 # 5) 生成全部可视化
 python -m visualization.generate_all
+
+# 若当前目录在 repo root（qgad-project/），使用：
+# python -m Deepquantum.visualization.generate_all
 ```
 
 ## 文档入口

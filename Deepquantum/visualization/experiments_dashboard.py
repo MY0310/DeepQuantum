@@ -9,24 +9,41 @@ import numpy as np
 
 if __package__ in (None, ""):
     sys.path.append(str(Path(__file__).resolve().parents[1]))
-
-from visualization.data_sources import (
-    ROOT,
-    load_ablation,
-    load_adversarial,
-    load_feature_forgery,
-    load_feature_sensitivity,
-    load_quantum_protection,
-    load_temporal_generalization,
-    load_topological_invariance,
-)
-from visualization.mpl_setup import (
-    apply_default_style,
-    get_plot_modules,
-    journal_palette,
-    save_figure,
-    set_axis_style,
-)
+    from visualization.data_sources import (
+        ROOT,
+        load_ablation,
+        load_adversarial,
+        load_feature_forgery,
+        load_feature_sensitivity,
+        load_quantum_protection,
+        load_temporal_generalization,
+        load_topological_invariance,
+    )
+    from visualization.mpl_setup import (
+        apply_default_style,
+        get_plot_modules,
+        journal_palette,
+        save_figure,
+        set_axis_style,
+    )
+else:
+    from .data_sources import (
+        ROOT,
+        load_ablation,
+        load_adversarial,
+        load_feature_forgery,
+        load_feature_sensitivity,
+        load_quantum_protection,
+        load_temporal_generalization,
+        load_topological_invariance,
+    )
+    from .mpl_setup import (
+        apply_default_style,
+        get_plot_modules,
+        journal_palette,
+        save_figure,
+        set_axis_style,
+    )
 
 plt = get_plot_modules(ROOT)
 apply_default_style(plt)

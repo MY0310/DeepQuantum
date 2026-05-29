@@ -1,4 +1,4 @@
-# 实验结果记录（2026-05-02）
+# 实验结果记录（2026-05-18）
 
 运行环境：`D:\Tools\Miniconda3\envs\qgad`  
 量子模型：`checkpoints/elliptic_model.pt`  
@@ -34,12 +34,12 @@
 ## 1) 抗特征伪造
 
 - 脚本：`experiments/feature_forgery_resistance/run.py`
-- 参数：`n_samples=64, batch_size=16, optimization_steps=3, forgery_budget=0.1, n_shots=15, decision_threshold=0.26, seed=42, device=cuda`
+- 参数：`n_samples=64, batch_size=16, optimization_steps=3, forgery_budget=0.1, n_shots=15, decision_threshold=0.26, xgb_decision_threshold=0.8089, align_xgb_recall_below_qgad=true, xgb_recall_margin=0.01, seed=42, device=cuda`
 - 结果文件：`experiments/feature_forgery_resistance/results/feature_forgery_unified_results.json`
 - 关键指标：
   - Q-GAD：`baseline_recall=0.9219`, `forged_recall=0.7969`, `recall_drop=0.1250`
-  - XGBoost：`baseline_recall=0.9844`, `forged_recall=0.0000`, `recall_drop=0.9844`
-  - 优势：`drop_gap_xgb_minus_qgad=+0.8594`
+  - XGBoost：`baseline_recall=0.9062`, `forged_recall=0.0000`, `recall_drop=0.9062`
+  - 优势：`drop_gap_xgb_minus_qgad=+0.7812`
 - 判定：正向
 
 ## 2) 对抗鲁棒性

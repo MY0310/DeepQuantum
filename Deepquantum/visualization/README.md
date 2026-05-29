@@ -9,6 +9,9 @@
 ```bash
 conda activate qgad
 
+# 方式 A：在 app root 执行（先进入 Deepquantum/）
+cd Deepquantum
+
 # 生成全部论文图
 python -m visualization.generate_all
 
@@ -17,6 +20,11 @@ python -m visualization.model_comparison
 
 # 仅生成 experiments/ 实验图
 python -m visualization.experiments_dashboard
+
+# 方式 B：在 repo root 执行（不进入 Deepquantum/）
+python -m Deepquantum.visualization.generate_all
+python -m Deepquantum.visualization.model_comparison
+python -m Deepquantum.visualization.experiments_dashboard
 ```
 
 ## 模块结构

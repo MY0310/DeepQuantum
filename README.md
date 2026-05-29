@@ -46,6 +46,11 @@ python gnn_baseline/run_gnn_baseline.py
 
 # 生成全部可视化
 python -m visualization.generate_all
+
+# 或者留在 repo root 直接执行：
+# python -m Deepquantum.visualization.generate_all
+# python -m Deepquantum.visualization.model_comparison
+# python -m Deepquantum.visualization.experiments_dashboard
 ```
 
 ## 文档索引

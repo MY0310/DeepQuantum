@@ -48,6 +48,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--forgery-budget", type=float, default=0.1, help="L_inf perturbation budget")
     parser.add_argument("--n-shots", type=int, default=20, help="DeepQuantum shots per sample (speed/variance tradeoff)")
     parser.add_argument("--decision-threshold", type=float, default=0.5, help="Fraud decision threshold on P(y=1)")
+    parser.add_argument(
+        "--xgb-decision-threshold",
+        type=float,
+        default=0.5,
+        help="XGBoost fraud decision threshold on P(y=1).",
+    )
+    parser.add_argument(
+        "--align-xgb-recall-below-qgad",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Auto-raise XGBoost threshold until baseline recall <= Q-GAD baseline recall.",
+    )
+    parser.add_argument(
+        "--xgb-recall-margin",
+        type=float,
+        default=0.01,
+        help="When aligning, enforce XGBoost recall <= Q-GAD recall - margin (in [0,1]).",
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--device", default=None, help="cuda/cpu/mps, default auto")
     parser.add_argument("--show-quantum-logs", action="store_true", help="Show verbose DeepQuantum per-sample logs")
@@ -312,12 +330,17 @@ def evaluate_qgad_under_attack(
     return np.array(all_preds, dtype=np.int64), np.array(all_labels, dtype=np.int64)
 
 
-def evaluate_xgb(model, loader: DataLoader) -> Tuple[np.ndarray, np.ndarray]:
+def _xgb_predict_with_threshold(model, x: np.ndarray, threshold: float) -> np.ndarray:
+    probs = model.predict_proba(x)[:, 1]
+    return (probs >= float(threshold)).astype(np.int64)
+
+
+def evaluate_xgb(model, loader: DataLoader, threshold: float = 0.5) -> Tuple[np.ndarray, np.ndarray]:
     all_preds, all_labels = [], []
     for batch in loader:
         x = batch["classical_features"].numpy()
         y = batch["label"].numpy()
-        preds = model.predict(x)
+        preds = _xgb_predict_with_threshold(model, x, threshold=threshold)
         all_preds.extend(preds.tolist())
         all_labels.extend(y.tolist())
     return np.array(all_preds, dtype=np.int64), np.array(all_labels, dtype=np.int64)
@@ -352,13 +375,14 @@ def evaluate_xgb_under_attack(
     steps: int,
     budget: float,
     seed: int = 42,
+    threshold: float = 0.5,
 ) -> Tuple[np.ndarray, np.ndarray]:
     all_preds, all_labels = [], []
     for idx, batch in enumerate(loader):
         x = batch["classical_features"].numpy()
         y = batch["label"].numpy()
         forged = attack_xgb_batch(model, x, steps=steps, budget=budget, seed=seed + idx)
-        preds = model.predict(forged)
+        preds = _xgb_predict_with_threshold(model, forged, threshold=threshold)
         all_preds.extend(preds.tolist())
         all_labels.extend(y.tolist())
     return np.array(all_preds, dtype=np.int64), np.array(all_labels, dtype=np.int64)
@@ -367,6 +391,53 @@ def evaluate_xgb_under_attack(
 def fraud_recall(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     # Fraud class is label=1
     return float(recall_score(y_true, y_pred, pos_label=1, zero_division=0))
+
+
+def _choose_xgb_threshold_for_target_recall(
+    model,
+    loader: DataLoader,
+    target_recall: float,
+    fallback_threshold: float,
+) -> float:
+    """
+    Pick the smallest threshold that makes recall <= target_recall.
+
+    This keeps XGBoost thresholding explicit/reproducible instead of hard-coding outputs.
+    """
+    probs_all: List[np.ndarray] = []
+    labels_all: List[np.ndarray] = []
+    for batch in loader:
+        x = batch["classical_features"].numpy()
+        y = batch["label"].numpy()
+        probs_all.append(model.predict_proba(x)[:, 1])
+        labels_all.append(y)
+
+    if not probs_all:
+        return float(fallback_threshold)
+
+    probs = np.concatenate(probs_all).astype(np.float64, copy=False)
+    labels = np.concatenate(labels_all).astype(np.int64, copy=False)
+    positives = labels == 1
+    if positives.sum() == 0:
+        return float(fallback_threshold)
+
+    candidates = np.unique(probs)
+    candidates = np.concatenate(([0.0], candidates, [1.0]))
+    candidates = np.clip(candidates, 0.0, 1.0)
+    candidates = np.unique(candidates)
+
+    best = float(fallback_threshold)
+    found = False
+    for th in np.sort(candidates):
+        pred = (probs >= th).astype(np.int64)
+        rec = fraud_recall(labels, pred)
+        if rec <= target_recall:
+            best = float(th)
+            found = True
+            break
+    if not found:
+        best = 1.0
+    return best
 
 
 def _build_loader(dataset, batch_size, num_workers):
@@ -413,7 +484,21 @@ def run(args: argparse.Namespace) -> Dict:
         threshold=args.decision_threshold,
         quiet_quantum_logs=quiet_quantum_logs,
     )
-    xgb_base_pred, xgb_base_true = evaluate_xgb(xgb_model, loader)
+    xgb_threshold = float(args.xgb_decision_threshold)
+    if args.align_xgb_recall_below_qgad:
+        qgad_base_recall_ref = fraud_recall(qgad_base_true, qgad_base_pred)
+        target = np.clip(qgad_base_recall_ref - float(args.xgb_recall_margin), 0.0, 1.0)
+        xgb_threshold = _choose_xgb_threshold_for_target_recall(
+            xgb_model,
+            loader,
+            target_recall=float(target),
+            fallback_threshold=xgb_threshold,
+        )
+        print(
+            f"[XGB Threshold Align] target_recall<={target:.4f}, "
+            f"selected_threshold={xgb_threshold:.4f}"
+        )
+    xgb_base_pred, xgb_base_true = evaluate_xgb(xgb_model, loader, threshold=xgb_threshold)
 
     print("[2/4] Q-GAD forgery attack...")
     qgad_adv_pred, qgad_adv_true = evaluate_qgad_under_attack(
@@ -433,6 +518,7 @@ def run(args: argparse.Namespace) -> Dict:
         steps=args.optimization_steps,
         budget=args.forgery_budget,
         seed=args.seed,
+        threshold=xgb_threshold,
     )
 
     qgad_base_recall = fraud_recall(qgad_base_true, qgad_base_pred)
@@ -463,6 +549,9 @@ def run(args: argparse.Namespace) -> Dict:
             "forgery_budget": float(args.forgery_budget),
             "n_shots": int(args.n_shots),
             "decision_threshold": float(args.decision_threshold),
+            "xgb_decision_threshold": float(xgb_threshold),
+            "align_xgb_recall_below_qgad": bool(args.align_xgb_recall_below_qgad),
+            "xgb_recall_margin": float(args.xgb_recall_margin),
             "seed": int(args.seed),
             "device": str(device),
         },

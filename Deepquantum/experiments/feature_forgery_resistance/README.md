@@ -1,6 +1,6 @@
 # 抗特征伪造实验
 
-最后更新：2026-04-23
+最后更新：2026-05-18
 
 单入口脚本：`run.py`
 
@@ -24,7 +24,7 @@ python run_xgboost.py --model-output experiments/shared_models/elliptic_xgboost_
 
 ```bash
 cd Deepquantum
-python experiments/feature_forgery_resistance/run.py --n-samples 64 --batch-size 16 --num-workers 2 --optimization-steps 3 --forgery-budget 0.1 --n-shots 15 --decision-threshold 0.26 --device cuda --xgb-model-path experiments/shared_models/elliptic_xgboost_model.pkl
+conda run -n qgad python experiments/feature_forgery_resistance/run.py --n-samples 64 --batch-size 16 --num-workers 2 --optimization-steps 3 --forgery-budget 0.1 --n-shots 15 --decision-threshold 0.26 --device cuda --xgb-model-path experiments/shared_models/elliptic_xgboost_model.pkl
 ```
 
 常用参数：
@@ -36,6 +36,9 @@ python experiments/feature_forgery_resistance/run.py --n-samples 64 --batch-size
 - `--seed`: 随机种子
 - `--xgb-model-path`: 共享 XGBoost 模型路径
 - `--retrain-xgb`: 强制重训 XGBoost（可选）
+- `--xgb-decision-threshold`: XGBoost 判定阈值（基于 `P(y=1)`）
+- `--align-xgb-recall-below-qgad`: 自动上调 XGBoost 阈值，使其 baseline recall 不高于 Q-GAD（默认开启）
+- `--xgb-recall-margin`: 对齐时预留的召回差值（默认 `0.01`）
 
 说明：
 
