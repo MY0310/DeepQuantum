@@ -1,0 +1,44 @@
+{
+  "timestamp": "20260423_093536",
+  "config": {
+    "device": "cuda",
+    "worker_device": "cuda",
+    "n_shots": 15,
+    "batch_size": 16,
+    "num_workers": 0,
+    "threads": 12,
+    "parallel_workers": 1,
+    "worker_threads": 12,
+    "seed": 42,
+    "val_samples": 2048,
+    "test_samples": 16670,
+    "num_shards": 1,
+    "shard_id": 0,
+    "merge_num_shards": 4
+  },
+  "best_on_val": {
+    "threshold": 0.25999999999999995,
+    "f1": 0.9047619047619048,
+    "precision": 0.912,
+    "recall": 0.8976377952755905
+  },
+  "test_at_0.5": {
+    "threshold": 0.5,
+    "f1": 0.5886840432294977,
+    "precision": 0.9448979591836735,
+    "recall": 0.4275161588180979,
+    "auc": 0.9256393136288431
+  },
+  "test_at_best": {
+    "threshold": 0.25999999999999995,
+    "f1": 0.6674570243034973,
+    "precision": 0.9321192052980133,
+    "recall": 0.5198522622345337,
+    "auc": 0.9256393136288431
+  },
+  "delta_f1": 0.07877298107399955,
+  "artifacts": {
+    "npz": "D:\\vscode\\projects\\Deepquantum\\Deepquantum\\outputs\\threshold_eval\\qgad_probs_20260423_093536.npz"
+  },
+  "elapsed_minutes": 0.0
+}

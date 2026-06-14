@@ -1,0 +1,30 @@
+{
+  "experiment_name": "XGBoost Classical Baseline",
+  "timestamp": "20260423_211356",
+  "model_type": "XGBoost",
+  "feature_dim": 166,
+  "uses_graph_topology": false,
+  "uses_quantum_features": false,
+  "train_samples": 23915,
+  "val_samples": 5979,
+  "test_samples": 16670,
+  "test_metrics": {
+    "accuracy": 0.965746850629874,
+    "precision": 0.75,
+    "recall": 0.7091412742382271,
+    "f1": 0.7289985761746559,
+    "auc": 0.9188438692873366,
+    "ap": 0.7769591880911425,
+    "confusion_matrix": [
+      [
+        15331,
+        256
+      ],
+      [
+        315,
+        768
+      ]
+    ]
+  },
+  "model_artifact": "experiments\\shared_models\\elliptic_xgboost_model.pkl"
+}

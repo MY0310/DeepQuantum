@@ -23,7 +23,9 @@ dist/
 *.swo
 
 # Data (large files, not tracked)
-Deepquantum/data/
+Deepquantum/data/*
+!Deepquantum/data/samples/
+!Deepquantum/data/samples/**
 
 # Model weights & checkpoints
 *.pt
@@ -36,7 +38,7 @@ Deepquantum/experiments/**/cache/
 Deepquantum/gnn_baseline/outputs/
 
 # Generated outputs
-Deepquantum/outputs/
+# Deepquantum/outputs/
 Deepquantum/logs/
 
 # Local runtime cache
