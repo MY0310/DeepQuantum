@@ -48,11 +48,19 @@ Deepquantum/.mplconfig/
 # Local work dirs (not for remote)
 .claude/
 .codex/
+.agents/
 article/
 AGENTS.md
 
 # Temp logs
 ui/.tmp_streamlit_*.log
 .tmp
+#desktop
+dist_release
+build_release
+desktop/storage/*.json
+desktop/storage/*.csv
+desktop/storage/*.txt
+desktop/resources/Deepquantum/data/elliptic/raw/features.csv
 
 ppt大纲.md

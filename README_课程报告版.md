@@ -2,7 +2,7 @@
 
 > 一个面向隐蔽网络威胁感知的量子-AI 融合图异常检测系统
 
-- **仓库地址**：https://github.com/MY0310/DeepQuantum.git
+- **仓库地址**：https://github.com/MY0310/Q-GAD.git
 - **作者**：杨焌铃
 - **邮箱**：mycqyjl@nuaa.edu.cn
 
@@ -12,7 +12,7 @@ Q-GAD（Quantum Graph Anomaly Detector）是一个面向隐蔽网络威胁感知
 
 系统通过 Ego-Net 采样与 Takagi-Autonne 分解，将宏观离散的威胁交互图谱映射为连续变量量子态参数；再基于自动微分的变分量子特征核，利用 GBS 采样概率对应的哈夫尼安（Hafnian）物理先验，主动学习高阶异常拓扑指纹。
 
-从实现上看，Q-GAD 并不是“单纯的量子算法”或“单纯的 XGBoost 方案”，而是一个完整的端到端图学习流水线：
+从实现上看，Q-GAD 由量子特征核、混合神经网络分类器和一套完整的数据处理与实验流程组成，能够在统一框架下完成特征提取、分类训练和结果评估；同时也实现了和 GNN/XGBoost 的对照测试，在相同数据设置下进行比较：
 
 - 数据层通过 Ego-Net 采样提取局部威胁子图，并完成时序切分与图结构整理
 - 量子层将局部子图映射为连续变量量子线路参数，生成 `squeezing` 与 `unitary`
@@ -25,7 +25,7 @@ Q-GAD（Quantum Graph Anomaly Detector）是一个面向隐蔽网络威胁感知
 项目包含以下能力：
 
 - 主训练流程：训练 Q-GAD 混合模型
-- 经典基线：训练 XGBoost 与 GNN 对照模型
+- 经典对照：XGBoost 与 GNN
 - 论文实验：消融、鲁棒性、泛化性与拓扑不变量分析
 - 可视化生成：输出图表与结果汇总
 - 监控原型：提供离线风险监控页面
@@ -50,7 +50,7 @@ Q-GAD（Quantum Graph Anomaly Detector）是一个面向隐蔽网络威胁感知
 | Matplotlib | 3.8.4 | 绘图 |
 | Seaborn | 0.13.2 | 统计可视化 |
 | Plotly | 6.7.0 | UI 和交互式图表 |
-| XGBoost | 3.2.0 | 经典基线与后融合分类 |
+| XGBoost | 3.2.0 | 经典对照与扩展实现 |
 | deepquantum | 4.5.0 | 光量子线路仿真框架 |
 | tqdm | 4.67.3 | 进度条 |
 | joblib | 1.5.3 | 模型持久化 |
@@ -64,7 +64,7 @@ Q-GAD（Quantum Graph Anomaly Detector）是一个面向隐蔽网络威胁感知
 | 依赖名称 | 使用版本 | 下载链接 | 安装方式 | 用途 |
 |----------|----------|----------|----------|------|
 | deepquantum | 4.5.0 | https://github.com/turingq/deepquantum | `pip install deepquantum` | GBS 线路构建、测量与采样 |
-| XGBoost | 3.2.0 | https://xgboost.readthedocs.io/ | `conda install -c conda-forge xgboost` 或 `pip install xgboost` | 经典基线与后融合分类 |
+| XGBoost | 3.2.0 | https://xgboost.readthedocs.io/ | `conda install -c conda-forge xgboost` 或 `pip install xgboost` | 经典对照与扩展实现 |
 | NetworkX | 3.4.2 | https://networkx.org/ | `conda install networkx` 或 `pip install networkx` | 图结构构建与子图抽取 |
 | Matplotlib | 3.8.4 | https://matplotlib.org/ | `conda install matplotlib` | 训练曲线与图表绘制 |
 | Plotly | 6.7.0 | https://plotly.com/python/ | `pip install plotly` | UI 交互图表 |
@@ -138,7 +138,7 @@ Q-GAD 主模型由量子特征核和混合分类器两部分组成：
 - 9 维量子特征
 - 166 维经典节点特征
 
-`HybridNeuralClassifier` 是当前主模型的默认分类头；仓库中同时保留了 `XGBoostFusionClassifier` 作为可选后融合实现，以及 `run_xgboost.py` 中的纯经典基线。
+仓库中还保留了 `XGBoostFusionClassifier` 和 `run_xgboost.py`，分别用于后续扩展和经典方法对照。
 
 ### 训练相关参数
 
